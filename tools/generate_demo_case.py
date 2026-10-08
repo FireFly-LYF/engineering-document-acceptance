@@ -13,11 +13,12 @@ CASE_ID = "demo-housing-mixed"
 CASE = ROOT / "cases" / CASE_ID
 FILES = CASE / "files"
 
+# Prefer smaller single-face TTF; full CJK fonts are 10–20MB and must be subset.
 FONT_CANDIDATES = [
-    Path(r"C:\Windows\Fonts\msyh.ttc"),
-    Path(r"C:\Windows\Fonts\msyhbd.ttc"),
     Path(r"C:\Windows\Fonts\simhei.ttf"),
     Path(r"C:\Windows\Fonts\simsun.ttc"),
+    Path(r"C:\Windows\Fonts\msyh.ttc"),
+    Path(r"C:\Windows\Fonts\msyhbd.ttc"),
 ]
 
 P = {
@@ -140,7 +141,9 @@ def make_pdf(
     if scan_style:
         page.insert_text((48, 790), "【扫描件示意 PDF】", fontname="cn", fontsize=9, color=(0.4, 0.4, 0.4))
 
-    doc.save(path)
+    # Subset embedded CJK fonts (otherwise each PDF is ~10–20MB of unused glyphs).
+    doc.subset_fonts()
+    doc.save(path, garbage=4, deflate=True)
     doc.close()
 
 
