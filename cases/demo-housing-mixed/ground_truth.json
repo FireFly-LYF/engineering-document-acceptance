@@ -77,6 +77,6 @@
     "标出滨河路管廊错传文件",
     "标出项目编号或合同金额冲突",
     "标出检验批重复/副本",
-    "再跑 engineering-doc-generator：prepare → 写正文.md → build docx"
+    "可选：再跑 engineering-doc-generator（prepare→正文→build）生成情况说明 docx"
   ]
 }
