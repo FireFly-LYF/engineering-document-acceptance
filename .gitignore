@@ -1,0 +1,32 @@
+# PDF assets (generate or fetch locally; do not commit)
+*.pdf
+**/*.pdf
+
+# dependencies
+**/node_modules/
+package-lock.json
+**/.agh/skills/**/package-lock.json
+
+# runtime / generated work products (keep source case metadata)
+cases/**/_work/
+生成结果/
+**/生成结果/
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# logs / temp
+*.log
+*.tmp
+_verify_utf8.txt
+FILE_LIST.txt

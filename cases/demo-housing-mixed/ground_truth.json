@@ -1,0 +1,82 @@
+{
+  "project_id": "demo-housing-mixed",
+  "rules_profile": "housing-construction",
+  "expected_highlights": {
+    "missing_required": [
+      {
+        "code": "E-01",
+        "name": "工程竣工验收报告",
+        "reason": "包内仅有《工程竣工预验收报告》，按规则不能替代正式竣工验收报告",
+        "similar_files": [
+          "files/05-验收/E-01-工程竣工预验收报告.pdf"
+        ]
+      },
+      {
+        "code": "G-01",
+        "name": "消防验收意见或备案凭证",
+        "reason": "包内无消防验收/备案类文件"
+      }
+    ],
+    "field_conflicts": [
+      {
+        "field": "项目编号",
+        "canonical": "YG-XFZX-JL-2024-018",
+        "conflict_value": "YG-XFZX-JL-2024-019",
+        "source": "files/02-监理/B-03-工程质量评估报告.pdf"
+      },
+      {
+        "field": "合同金额",
+        "canonical": "86500000",
+        "conflict_value": "92000000",
+        "source": "files/05-验收/E-02-施工单位工程竣工报告.pdf"
+      }
+    ],
+    "suspect_misfiled": [
+      "files/99-错传/滨河路市政管廊一期-施工合同.pdf",
+      "files/99-错传/滨河路市政管廊一期-竣工验收报告.pdf"
+    ],
+    "suspect_duplicate": [
+      {
+        "files": [
+          "files/03-施工/C-02-检验批质量验收记录-钢筋工程-01.pdf",
+          "files/03-施工/C-02-检验批质量验收记录-钢筋工程-01-副本.pdf"
+        ],
+        "shared_file_no": "JYP-GJ-2024-011"
+      }
+    ],
+    "should_be_provided_examples": [
+      "A-01",
+      "A-02",
+      "A-03",
+      "A-04",
+      "B-01",
+      "B-03",
+      "C-01",
+      "C-02",
+      "C-03",
+      "C-04",
+      "D-01",
+      "E-02",
+      "E-03",
+      "F-01",
+      "G-02"
+    ],
+    "scan_style_pdfs": [
+      "files/01-准备/A-02-建筑工程施工许可证.pdf",
+      "files/02-监理/B-03-工程质量评估报告.pdf",
+      "files/04-检测/D-01-材料进场报审及复试报告-钢筋.pdf",
+      "files/05-验收/E-01-工程竣工预验收报告.pdf",
+      "files/06-竣工图/F-01-建筑竣工图说明.pdf"
+    ]
+  },
+  "agh_success_criteria": [
+    "加载 housing-construction 规则",
+    "枚举并为 PDF 写出 _work 产物",
+    "E-01 判 missing 且指出预验收不可替代",
+    "G-01 判 missing",
+    "标出滨河路管廊错传文件",
+    "标出项目编号或合同金额冲突",
+    "标出检验批重复/副本",
+    "再跑 engineering-doc-generator：prepare → 写正文.md → build docx"
+  ]
+}
