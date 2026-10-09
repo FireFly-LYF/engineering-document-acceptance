@@ -1,141 +1,118 @@
-# 工程竣工资料核查
+# Engineering Document Acceptance
 
-## 版本更新
+基于 **Agnes Harness（AGH）+ Skill** 的房屋建筑工程竣工资料智能核查与情况说明生成演示项目。
 
-后续每轮更新以独立提交追加到 `main`，更新内容见 [CHANGELOG](CHANGELOG.md)。可在 GitHub 查看 [main 提交历史](https://github.com/FireFly-LYF/engineering-document-acceptance/commits/main/) 和 [版本标记](https://github.com/FireFly-LYF/engineering-document-acceptance/tags)。
+面向「建设工程竣工资料完整性与一致性核查」：对照可配置归档清单做齐套/错传/冲突/重复判定，并生成正式《核查情况说明》Word。确定性步骤由本地脚本完成，Agent 阅读 Skill 与简报做抽查、润色与执笔。
 
-通过给定参考 Markdown、可维护 tag/label 和条件规则，对工程档案包做资料类型、项目归属、文载一致性、重复版本和明确范围的核查，保存数据库证据链并导出 Word。
+> 演示数据均为**合成材料**，规则参考政府部门公开的归档目录与验收空白表结构，**不含真实工程档案与个人隐私**。
 
-仅处理本项目；Agnes key 从环境变量或本地 `.env` 读取。原始资料不修改，每次核查建立独立运行快照。
+完整「证据库 / 流水线 / Agnes API」系统实现已存档在分支 [`system`](https://github.com/FireFly-LYF/engineering-document-acceptance/tree/system)（对应 v1.0.x）。**`main` 仅保留 Skill + 脚本**，供 Agnes 在 AGH 会话中阅读并完成规则匹配与文书生成。
 
-## 安装与运行
+## 功能概览
 
-建议 Python 3.10+ 和 Node.js：
+| 能力 | Skill | 说明 |
+|------|--------|------|
+| 齐套与一致性核查 | `engineering-archive-audit` | 清单匹配、字段抽取初稿、缺失/错传/冲突/重复判定 |
+| 情况说明文书生成 | `engineering-doc-generator` | `prepare` → Agent 写正文 → `build` 导出 `.docx` |
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r requirements.txt
-npm.cmd install --prefix .agh/skills/engineering-doc-generator
-.\.venv\Scripts\python.exe tools/generate_realistic_cases.py --missing-only
-```
+不使用 Workflow 编排；不依赖第三方业务模型 API。AGH 会话中应使用 **Agnes** 模型阅读本仓库 Skills。
 
-复制 `.env.example` 为 `.env` 并填写 Agnes key。默认接口为 `https://api.agnes-ai.cn/v1`，模型为 `agnes-3.0-flash`。
-
-```powershell
-# 本地确定性核查，未配置 OCR 的扫描页会明确进入复核
-.\.venv\Scripts\python.exe -m app.cli run --case cases/realistic/school-issues --word
-
-# 使用 Agnes 识别扫描页、提取字段候选和辅助撰写说明
-.\.venv\Scripts\python.exe -m app.cli run --case cases/realistic/scans-and-unreadable --use-agnes --word
-```
-
-原 AGH Skill 入口继续可用：
-
-```powershell
-.\.venv\Scripts\python.exe .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/realistic/school-issues --use-agnes --word
-```
-
-## 架构与可维护配置
-
-- [系统架构](docs/工程竣工核查系统架构.md)
-- [34 个 tag、34 个 label 及完整绑定](docs/tag-label完整字典.md)
-- [给定核查参考 Markdown](reference/housing-audit-reference.md)
-- `config/document_tags.yaml`：资料类型、别名、排除词。
-- `config/field_definitions.yaml`：业务字段、含义、类型、单位、比较范围与策略。
-- `config/tag_label_bindings.yaml`：每类资料允许提取的字段。
-- `config/rules/housing-core.yaml`：17 条核心条件规则，需结合地区完整归档目录配置。
-
-修改字典后运行 `tools/export_catalog.py` 更新可读字典。每次运行冻结配置指纹，不覆盖历史规则版本。`--reference` 可以指定项目内另一份参考 Markdown；不再让孤立的旧 JSON 清单绕过字段、范围和条件契约。
-
-## 输入约定
+## 目录结构
 
 ```text
-cases/<id>/
-  manifest.json
-  files/                   # PDF、DOCX、XLSX/XLS、图片、CSV/TSV/文本，可含子目录
-  ground_truth.json        # 仅测试工具读取，核查器和模型不会读取
+engineering-document-acceptance/
+├── .agh/skills/
+│   ├── engineering-archive-audit/     # 核查 Skill + rules + audit_prepare.py
+│   └── engineering-doc-generator/     # 文书 Skill + generate.js（prepare/build）
+├── cases/demo-housing-mixed/          # 演示项目元数据（PDF 本地生成）
+├── reference/public-pdfs/             # 公开目录索引与少量已入库参考 PDF
+├── tools/                             # 造数与拉取公开 PDF 的开发脚本
+└── README.md
 ```
 
-manifest 中保留项目参考值，并显式给出条件和应交范围：
+演示包 PDF 若缺失，在本地生成：
 
-```json
-{
-  "project_id": "example",
-  "project_type": "房屋建筑工程",
-  "project_name": "示例项目",
-  "project_code": "EX-2026-001",
-  "owner": "示例建设单位",
-  "address": "示例工程地址",
-  "contract_no": "SG-001",
-  "contract_amount": "86500000",
-  "audit_context": {
-    "audit_stage": "post_acceptance",
-    "regulatory_scope": "general_civil",
-    "fire_regulation_applicable": true,
-    "supervision_entrusted": true,
-    "use_type": "school",
-    "fire_category": "special",
-    "fire_category_source": "经核实的项目分类依据",
-    "fire_spotcheck_selected": false,
-    "coverage_plan_confirmed": true
-  },
-  "coverage_plan": [
-    {"tag": "INSPECTION_BATCH", "unit_name": "教学楼", "discipline": "结构", "location": "一层"}
-  ]
-}
+```bash
+python tools/generate_demo_case.py
+python tools/fetch_public_pdfs.py
 ```
 
-条件未知时留空或 null，不自动判不适用。`regulatory_scope` 确认属于本参考的普通民用工程适用范围；抢险救灾、临时工程、农民自建低层住宅等不能自动套用本组验收规定。`fire_regulation_applicable` 及消防分类由调用方核实，模型不会仅凭名称/面积自动认定。上传 `file_tags` 可按相对路径提供分类线索，核查器仍以正文标题确认。Word/Excel 保存逻辑定位，不伪造物理页。
+## 环境要求
 
-旧 `demo-housing-mixed` 缺少新规则适用条件与合同关联字段，会产生适用性/合同范围待复核，不能通过隐含假设伪造缺件结论。新的五组案例见 `cases/realistic`。
+- [Agnes Harness](https://agnes-ai.cn/) 可运行（Web / CLI）
+- Python 3 + `pymupdf`（核查脚本读 PDF 文本层）
+- Node.js（文书 `docx` 导出；首次在文书 Skill 目录执行 `npm install`）
 
-## 数据库和输出
+```bash
+pip install pymupdf
+cd .agh/skills/engineering-doc-generator && npm install
+```
 
-默认 SQLite：`cases/<id>/_work/audit.sqlite`。MySQL 适配器使用同一证据实体设计；可在 `.env` 配置 `ENGINEERING_DATABASE_URL`，指定已创建的 MySQL 数据库。DDL 为 `database/schema.mysql.sql`，当前未在真实 MySQL 服务执行验证。
+## 在 AGH 中使用
 
-27 张表分别保存版本化字典、项目范围、运行、原件、逻辑资料、Markdown、片段、证据、候选、规则、问题、复核和文书。关联外键约束同一运行、同一文件、同一阅读单元及同一项目范围；哈希不唯一，保留重复上传。
-
-每次运行保存：
+1. 启动 AGH，将本仓库根目录添加为工作区。
+2. Skills 管理中刷新并启用：
+   - `engineering-archive-audit`
+   - `engineering-doc-generator`
+3. 新建会话，可用如下任务描述：
 
 ```text
-_work/runs/<run_id>/
-  source_files/            # 原件只读副本
-  markdown/<file_id>/      # unit_001.md + unit_001.source_map.json
-  candidates.json
-  audit-result.json        # 权威核查结果
-  audit-report.md
-  evidence-index.json
-  statement-facts.json
-  statement-validation.json
-  正文.md
-  run_stats.json
-  deliverables/            # 可选 Word
+请使用 engineering-archive-audit 对 cases/demo-housing-mixed 做竣工资料齐套与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。
+
+核查完成后，使用 engineering-doc-generator 生成《竣工资料核查情况说明》并导出 Word。
+
+结论需覆盖：缺失项、错传、字段冲突、重复件。
 ```
 
-`_work` 根目录保存最近一次运行的兼容产物和 `latest-run.json`。Word 另复制到 `生成结果/`，名称包含 run_id。导出前检查统计、占位符、路径、密钥和无依据的全量通过措辞；自由文本仍需人工校对。
+也可直接复制 `cases/demo-housing-mixed/TEST_PROMPT.txt`。
 
-## 人工复核
+### 脚本优先（Skill 内约定）
 
-```powershell
-.\.venv\Scripts\python.exe -m app.cli review --db cases/realistic/school-issues/_work/audit.sqlite --run <run_id> --finding <finding_id> --decision request_more --reason "请补充原始合同" --reviewer <reviewer_ref>
+核查（工作区根目录）：
+
+```bash
+python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/demo-housing-mixed
 ```
 
-支持 confirm、dismiss、request_more。dismiss 需要 `--evidence <evidence_id>`，且证据必须属于同次运行。保存前后状态，不覆盖原始候选。复核不自动改写已经生成的文书；资料更正后重新核查，形成新运行和新文书。
+文书：
 
-## 验证与模拟材料
-
-```powershell
-.\.venv\Scripts\python.exe -m pytest tests -q
-node tests/test_word.js
-.\.venv\Scripts\python.exe tools/run_regression.py
+```bash
+cd .agh/skills/engineering-doc-generator
+node scripts/generate.js prepare --case ../../../cases/demo-housing-mixed
+# Agent 撰写 cases/.../_work/正文.md 后：
+node scripts/generate.js build --case ../../../cases/demo-housing-mixed --out ../../../生成结果
 ```
 
-模拟包包含：学校缺件/错传/编号金额冲突/重复，完整资料，多楼栋住宅范围缺口，合法价格变更和图纸版本/Office，真实像素扫描/混合 PDF/合订/损坏文件。项目和单位均虚构，truth 与模型输入隔离。
+## 演示包考点（`demo-housing-mixed`）
 
-合成二进制文件不提交 Git。首次克隆后用 `--missing-only` 补齐已有测试元数据对应的文件，已有文件不覆盖，元数据不一致时拒绝操作。重新造数也可以使用新目录：
+合成项目「云港新区示范中学教学楼改扩建工程」，约 24 份 PDF，刻意包含：
 
-```powershell
-.\.venv\Scripts\python.exe tools/generate_realistic_cases.py --root cases/realistic-new
-```
+- 缺失正式《工程竣工验收报告》（仅有预验收）与消防验收类材料
+- 他项工程错传文件
+- 项目编号 / 合同金额跨文件冲突
+- 检验批记录重复（同文件编号）
 
-本系统输出资料核查结论，不代替工程实体质量鉴定、主管部门行政验收或地区完整归档要求。范围计划未确认时，类型存在不能写成全部楼栋和部位齐套；扫描不可辨认时保留读取不足。
+对照预期见 `cases/demo-housing-mixed/ground_truth.json`。
+
+## 规则模板
+
+`engineering-archive-audit/rules/` 下 JSON 可配置，默认 `housing-construction.json`（房屋建筑）。道路/桥梁、市政管线为占位清单，可按公开目录替换，避免写死单一地市全文。
+
+公开参考 PDF 索引：`reference/public-pdfs/SOURCES.txt`。
+
+## 开发辅助脚本（`tools/`）
+
+| 脚本 | 用途 |
+|------|------|
+| `generate_demo_case.py` | 重新生成合成演示 PDF 包 |
+| `fetch_public_pdfs.py` | 拉取公开归档指南/目录类 PDF 到 `reference/` |
+
+## 说明与边界
+
+- 本仓库 `main` 为 AGH Skill 演示工作区，**不是** Agnes Harness 源码本身，也不是完整核查系统服务。
+- 归档要求因地区、工程类型、建设单位而异；以可配置规则为准。
+- 脚本初稿结论供 Agent 抽查润色；正式行政验收效力以主管部门规定为准。
+
+## License
+
+演示与学习用途。公开参考文件版权归原发布单位；合成数据可自由用于复现实验。

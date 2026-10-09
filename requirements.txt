@@ -1,8 +1,0 @@
-pymupdf>=1.24,<2
-python-docx>=1.1,<2
-openpyxl>=3.1,<4
-xlrd>=2,<3
-Pillow>=10,<13
-pytest>=8,<10
-PyYAML>=6,<7
-PyMySQL>=1.1,<2

@@ -1,3 +1,18 @@
+# dependencies
+**/node_modules/
+package-lock.json
+**/.agh/skills/**/package-lock.json
+
+# runtime / generated work products (keep source case metadata)
+cases/**/_work/
+生成结果/
+**/生成结果/
+
+# credentials and local env
+.env
+.env.local
+.env.*
+
 # python
 __pycache__/
 *.py[cod]
@@ -16,18 +31,3 @@ Thumbs.db
 *.tmp
 _verify_utf8.txt
 FILE_LIST.txt
-
-# Credentials and reproducible local run artifacts
-.env
-.env.local
-node_modules/
-.pytest_cache/
-cases/**/_work/
-tmp/
-.env.*
-!.env.example
-*.sqlite
-*.sqlite-wal
-*.sqlite-shm
-cases/realistic/**/files/
-/生成结果/
