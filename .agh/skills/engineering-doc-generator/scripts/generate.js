@@ -115,8 +115,22 @@ function buildFacts(bundle) {
   const conflicts = Array.isArray(c.conflicts)
     ? c.conflicts
     : Array.isArray(c.冲突)
-      ? c.冲突
+      ? Object.entries(c.冲突).map(([field, info]) => ({
+          field,
+          values: info.values,
+          summary: info.summary,
+          scope: 'in_project',
+        }))
       : [];
+
+  // Prefer in-project FIELD only; MISFILE/DUP/missing always included.
+  const important_findings = summary.items.filter((x) => {
+    if (['missing', 'suspect_duplicate_or_misfiled'].includes(x.status)) return true;
+    if (x.status === 'needs_human_review' && x.code === 'FIELD') {
+      return x.scope !== 'misfile_cascade';
+    }
+    return x.status === 'needs_human_review';
+  });
 
   return {
     available,
@@ -124,13 +138,12 @@ function buildFacts(bundle) {
     finding_counts: summary.counts,
     finding_total: summary.total,
     conflicts,
-    important_findings: summary.items.filter((x) =>
-      ['missing', 'suspect_duplicate_or_misfiled', 'needs_human_review'].includes(x.status)
-    ),
+    important_findings,
     provided_codes: summary.items
       .filter((x) => x.status === 'provided')
       .map((x) => x.code || x.name)
       .filter(Boolean),
+    consensus_note: c.note || '',
   };
 }
 
@@ -163,8 +176,20 @@ function buildOutline(facts) {
   ];
 }
 
+function statusLabel(st) {
+  return (
+    {
+      provided: '已提供',
+      missing: '缺失',
+      suspect_duplicate_or_misfiled: '错传或重复',
+      needs_human_review: '需复核',
+    }[st] || st
+  );
+}
+
 function writeAgentBrief(bundle, facts, evidence, outline) {
   const a = facts.available;
+  const c = facts.finding_counts || {};
   const lines = [];
   lines.push('# Agent 执笔简报（请只据此与 facts/evidence 写正文.md）');
   lines.push('');
@@ -179,30 +204,40 @@ function writeAgentBrief(bundle, facts, evidence, outline) {
   lines.push(`- 落款日期可用: ${a.current_date || getCurrentDate()}`);
   lines.push('');
   lines.push('## 四态统计');
-  lines.push(JSON.stringify(facts.finding_counts, null, 2));
+  lines.push(
+    `- 已提供 ${c.provided || 0}；缺失 ${c.missing || 0}；` +
+      `错传或重复 ${c.suspect_duplicate_or_misfiled || 0}；` +
+      `本工程字段复核 ${c.needs_human_review || 0}`
+  );
   lines.push('');
   lines.push('## 须写入正文的重要问题（勿增删结论方向）');
+  lines.push('分层：缺失 → 错传 → 重复 → 本工程字段冲突。勿把错传引起的级联差异写成多条本工程冲突。');
   if (!facts.important_findings.length) {
-    lines.push('- （findings 中无 missing/suspect/needs_human_review；若全为 provided，结论写齐套，勿夸大）');
+    lines.push('- （无缺失/错传/重复/本工程冲突；若全为已提供，结论写齐套，勿夸大）');
   } else {
     for (const it of facts.important_findings) {
-      lines.push(
-        `- [${it.status}] ${it.code || ''} ${it.name || ''} | ${it.reason || it.judgment || ''} | 建议: ${it.suggestion || ''}`
-      );
+      const tip = [];
       if (it.similar_files && it.similar_files.length) {
-        lines.push(`  相似文件: ${it.similar_files.map((x) => path.basename(String(x))).join('；')}`);
+        tip.push('相似: ' + it.similar_files.map((x) => path.basename(String(x))).join('；'));
+      } else if (it.matched_file) {
+        tip.push('文件: ' + path.basename(String(it.matched_file)));
       }
+      lines.push(
+        `- [${statusLabel(it.status)}] ${it.code || ''} ${it.name || ''} | ${it.reason || it.judgment || ''} | 建议: ${it.suggestion || ''}` +
+          (tip.length ? ` | ${tip.join('；')}` : '')
+      );
     }
   }
   lines.push('');
-  lines.push('## 字段冲突');
+  lines.push('## 本工程字段冲突（摘要，已排除错传）');
   if (!facts.conflicts.length) lines.push('- 无');
   else {
-    for (const c of facts.conflicts) {
-      lines.push(
-        `- ${c.field || c.name}: ${JSON.stringify(c.values || c)}`
-      );
+    for (const item of facts.conflicts) {
+      lines.push(`- ${item.field || item.name}: ${item.summary || JSON.stringify(item.values || item)}`);
     }
+  }
+  if (facts.consensus_note) {
+    lines.push(`> ${facts.consensus_note}`);
   }
   lines.push('');
   lines.push('## 章节大纲');
@@ -212,6 +247,7 @@ function writeAgentBrief(bundle, facts, evidence, outline) {
   lines.push('- 不写磁盘路径；附件行只写短文件名/资料标准名');
   lines.push('- 有 missing 不得写「全部齐套合格」');
   lines.push('- 预验收默认不能替代正式竣工验收报告');
+  lines.push('- 错传单独成段；本工程真冲突写清取值与短文件名');
   lines.push('- 写完后执行: node scripts/generate.js build --case <caseDir>');
   lines.push('');
   lines.push(`## 材料份数: ${evidence.count}`);

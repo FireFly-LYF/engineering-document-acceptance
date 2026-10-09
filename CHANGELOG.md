@@ -2,6 +2,13 @@
 
 每轮更新以独立提交追加到 `main`。已发布提交保留，版本 tag 指向对应快照。
 
+## v1.1.1 2026-10-09
+
+- 核查脚本：错传不参与字段共识；FIELD 仅保留本工程真冲突；简报/报告去路径与双重粘贴。
+- 加固 `demo-housing-mixed`：错传混入正常目录、去掉「副本」文件名、预验收不带规则 code；收紧 ground_truth 评分说明。
+- 新增对照包 `demo-housing-near-miss`：近邻混淆、开工日期冲突、缺 D-01、不可读扫描；造数脚本 `tools/generate_near_miss_case.py`。
+- 空文本 PDF 标 `UNREADABLE` / `needs_human_review`。
+
 ## v1.1.0 2026-10-09
 
 - `main` 恢复为 AGH 双 Skill + 确定性脚本工作流（对齐 v0.1.1 形态）。

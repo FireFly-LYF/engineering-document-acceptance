@@ -71,10 +71,10 @@ engineering-document-acceptance/
 进度:
 - [ ] 1. 确认 cases/<id> 与规则模板
 - [ ] 2. 运行 audit_prepare.py（必做，勿用手搓 inventory/findings）
-- [ ] 3. 阅读 _work/agent-brief.md + findings.json（不要通读全部 PDF）
-- [ ] 4. 仅对 needs_human_review / 明显误判做抽查修正
+- [ ] 3. 阅读 _work/audit-brief.md + findings.json（不要通读全部 PDF）
+- [ ] 4. 仅对本工程字段冲突 / 错传 / 明显误判做抽查修正；勿把错传级联当多条本工程冲突
 - [ ] 5. 如需，润色 audit-report.md（不改结论方向）
-- [ ] 6. 摘要四态统计；文书需求交给 engineering-doc-generator
+- [ ] 6. 摘要四态统计；文书需求交给 engineering-doc-generator（prepare 会另写 agent-brief.md）
 ```
 
 ### 确定性脚本（必跑）
@@ -83,9 +83,13 @@ engineering-document-acceptance/
 
 ```bash
 python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/demo-housing-mixed
+python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/demo-housing-near-miss
 ```
 
-脚本会写入：`inventory.json`、`classification.json`、`fields.json`、`field_consensus.json`、`findings.json`、`audit-report.md`、`agent-brief.md`。  
+脚本会写入：`inventory.json`、`classification.json`、`fields.json`、`field_consensus.json`、`findings.json`、`audit-report.md`、`audit-brief.md`。  
+错传/他项文件不参与齐套命中与字段共识；本工程 FIELD 仅保留相对 manifest 锚值的真冲突。  
+空文本/损坏扫描标 `UNREADABLE`（`needs_human_review`），不能据此认定已提供。  
+演示对照：`demo-housing-mixed`（远域错传/编号金额/重复）、`demo-housing-near-miss`（近邻混淆/开工日期/缺检测/不可读）。  
 **禁止**让 Agent 重新枚举全部文件或对每份 PDF 做完整阅读来「重做」上述产物。
 
 ZIP：先解压到 `cases/<id>/files/` 或 `_work/extracted/`，再跑脚本。
@@ -211,7 +215,7 @@ ZIP：先解压到 `cases/<id>/files/` 或 `_work/extracted/`，再跑脚本。
 | `_work/findings.json` | 结构化核查结论 |
 | `_work/audit-report.md` | 证据链报告 |
 
-`_work/agent-brief.md`：给 Agent 与 `engineering-doc-generator` 的精简摘要（脚本生成）。
+`_work/audit-brief.md`：核查抽查用精简摘要。文书执笔请读 `engineering-doc-generator` prepare 生成的 `agent-brief.md`。
 
 ## 执行方式
 

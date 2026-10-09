@@ -24,7 +24,8 @@ engineering-document-acceptance/
 ├── .agh/skills/
 │   ├── engineering-archive-audit/     # 核查 Skill + rules + audit_prepare.py
 │   └── engineering-doc-generator/     # 文书 Skill + generate.js（prepare/build）
-├── cases/demo-housing-mixed/          # 演示项目元数据（PDF 本地生成）
+├── cases/demo-housing-mixed/          # 基础演示：远域错传 / 编号金额冲突 / 重复件
+├── cases/demo-housing-near-miss/      # 对照包：近邻混淆 / 开工日期冲突 / 缺检测 / 不可读页
 ├── reference/public-pdfs/             # 公开目录索引与少量已入库参考 PDF
 ├── tools/                             # 造数与拉取公开 PDF 的开发脚本
 └── README.md
@@ -34,6 +35,7 @@ engineering-document-acceptance/
 
 ```bash
 python tools/generate_demo_case.py
+python tools/generate_near_miss_case.py
 python tools/fetch_public_pdfs.py
 ```
 
@@ -64,7 +66,7 @@ cd .agh/skills/engineering-doc-generator && npm install
 结论需覆盖：缺失项、错传、字段冲突、重复件。
 ```
 
-也可直接复制 `cases/demo-housing-mixed/TEST_PROMPT.txt`。
+也可直接复制 `cases/demo-housing-mixed/TEST_PROMPT.txt` 或 `cases/demo-housing-near-miss/TEST_PROMPT.txt`。
 
 ### 脚本优先（Skill 内约定）
 
@@ -72,6 +74,7 @@ cd .agh/skills/engineering-doc-generator && npm install
 
 ```bash
 python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/demo-housing-mixed
+python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/demo-housing-near-miss
 ```
 
 文书：
@@ -94,6 +97,17 @@ node scripts/generate.js build --case ../../../cases/demo-housing-mixed --out ..
 
 对照预期见 `cases/demo-housing-mixed/ground_truth.json`。
 
+## 对照包考点（`demo-housing-near-miss`）
+
+合成项目「云港新区示范中学实验楼加固改造工程」，与 mixed 区分考点：
+
+- 近邻混淆：同校区教学楼合同、同学府路小学正式验收混入正常目录（无「错传」路径）
+- 缺失材料检测 D-01、正式竣工验收 E-01、消防 G-01
+- 本工程开工日期冲突（施工许可 vs manifest）
+- 无文本层不可读扫描页 → `needs_human_review`
+
+对照预期见 `cases/demo-housing-near-miss/ground_truth.json`。
+
 ## 规则模板
 
 `engineering-archive-audit/rules/` 下 JSON 可配置，默认 `housing-construction.json`（房屋建筑）。道路/桥梁、市政管线为占位清单，可按公开目录替换，避免写死单一地市全文。
@@ -104,7 +118,8 @@ node scripts/generate.js build --case ../../../cases/demo-housing-mixed --out ..
 
 | 脚本 | 用途 |
 |------|------|
-| `generate_demo_case.py` | 重新生成合成演示 PDF 包 |
+| `generate_demo_case.py` | 重新生成 `demo-housing-mixed` |
+| `generate_near_miss_case.py` | 重新生成 `demo-housing-near-miss` |
 | `fetch_public_pdfs.py` | 拉取公开归档指南/目录类 PDF 到 `reference/` |
 
 ## 说明与边界
