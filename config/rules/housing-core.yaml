@@ -1,0 +1,32 @@
+version: '1.1.0'
+profile_id: housing-core
+project_type: 房屋建筑工程
+scope: 资料类型及文载一致性
+status: draft_localizable
+region: null
+source_conditions:
+  national-acceptance-2013: {regulatory_scope: general_civil}
+  national-fire-2023: {fire_regulation_applicable: true}
+# Conditions are three-valued. Unknown -> not_evaluated, never automatic missing.
+# This core profile is not a complete local statutory archive catalog.
+sources:
+  - {id: national-acceptance-2013, title: 房屋建筑和市政基础设施工程竣工验收规定, issuer: 住房城乡建设部, document_no: 建质〔2013〕171号, url: 'https://zjw.sh.gov.cn/wjhb/20240724/797dd0012e8e4334af9d956fed875a5d.html', checked_on: '2026-10-09'}
+  - {id: national-fire-2023, title: 建设工程消防设计审查验收管理暂行规定（2023年修正）, issuer: 住房城乡建设部, document_no: 部令第51号及第58号, url: 'https://www.beijing.gov.cn/zhengce/zhengcefagui/qtwj/202404/t20240415_3617624.html', checked_on: '2026-10-09'}
+rules:
+  - {rule_id: AC-001, kind: presence, name: 正式工程竣工验收报告, accepted_tags: [COMPLETION_ACCEPTANCE_REPORT], excluded_tags: [PRE_ACCEPTANCE_REPORT, CONSTRUCTION_COMPLETION_REPORT], when: {audit_stage: post_acceptance}, basis_id: national-acceptance-2013, basis_clause: 第七条, required: true}
+  - {rule_id: AC-002, kind: presence, name: 施工单位工程竣工报告, accepted_tags: [CONSTRUCTION_COMPLETION_REPORT], when: {audit_stage: post_acceptance}, basis_id: national-acceptance-2013, basis_clause: 第五条第二项及第七条, required: true}
+  - {rule_id: AC-003, kind: presence, name: 监理工程质量评估报告, accepted_tags: [SUPERVISION_QUALITY_REPORT], when: {audit_stage: post_acceptance, supervision_entrusted: true}, basis_id: national-acceptance-2013, basis_clause: 第五条第三项, required: true}
+  - {rule_id: AC-004, kind: presence, name: 勘察单位质量检查报告, accepted_tags: [SURVEY_QUALITY_REPORT], when: {audit_stage: post_acceptance}, basis_id: national-acceptance-2013, basis_clause: 第五条第四项, required: true}
+  - {rule_id: AC-005, kind: presence, name: 设计单位质量检查报告, accepted_tags: [DESIGN_QUALITY_REPORT], when: {audit_stage: post_acceptance}, basis_id: national-acceptance-2013, basis_clause: 第五条第四项, required: true}
+  - {rule_id: AC-006, kind: presence, name: 工程质量保修书, accepted_tags: [QUALITY_WARRANTY], when: {audit_stage: post_acceptance}, basis_id: national-acceptance-2013, basis_clause: 第五条第八项, required: true}
+  - {rule_id: AC-007, kind: presence, name: 住宅工程分户验收资料, accepted_tags: [HOUSEHOLD_ACCEPTANCE], when: {audit_stage: post_acceptance, use_type: residential}, basis_id: national-acceptance-2013, basis_clause: 第五条第九项, required: true}
+  - {rule_id: FI-001, kind: presence, name: 特殊建设工程消防验收意见, accepted_tags: [FIRE_ACCEPTANCE_OPINION], excluded_tags: [FIRE_FILING_RECEIPT], when: {fire_category: special, audit_stage: post_acceptance}, basis_id: national-fire-2023, required: true}
+  - {rule_id: FI-002, kind: presence, name: 其他建设工程消防验收备案凭证, accepted_tags: [FIRE_FILING_RECEIPT], when: {fire_category: other, audit_stage: post_acceptance}, basis_id: national-fire-2023, required: true}
+  - {rule_id: FI-003, kind: presence, name: 被抽查工程的消防抽查结果, accepted_tags: [FIRE_SPOTCHECK_RESULT], when: {fire_category: other, fire_spotcheck_selected: true, audit_stage: post_acceptance}, basis_id: national-fire-2023, required: true}
+  - {rule_id: ID-001, kind: identity, name: 项目归属核验, labels: [project_name, project_code, owner, address], when: {}, required: true}
+  - {rule_id: CO-001, kind: consistency, name: 项目基础信息文载一致性, labels: [project_name, project_code, owner, address], comparison_scope: project, when: {}, required: true}
+  - {rule_id: CO-002, kind: consistency, name: 同一施工合同的原始合同额一致性, labels: [contract_no, contract_amount], comparison_scope: contract, when: {}, required: true}
+  - {rule_id: DT-001, kind: chronology, name: 实际开工与竣工顺序, labels: [start_date, finish_date], comparison_scope: unit, when: {}, required: true}
+  - {rule_id: DU-001, kind: duplicate, name: 文件重复与版本差异, labels: [document_no, revision], comparison_scope: document, when: {}, required: true}
+  - {rule_id: CV-001, kind: coverage, name: 施工记录范围覆盖, accepted_tags: [INSPECTION_BATCH, SUBITEM_ACCEPTANCE, DIVISION_ACCEPTANCE], labels: [unit_name, discipline, location], when: {coverage_plan_confirmed: true}, required: true}
+  - {rule_id: CT-001, kind: content, name: 文载结论及整改事项复核, accepted_tags: [COMPLETION_ACCEPTANCE_REPORT, FIRE_ACCEPTANCE_OPINION, FIRE_FILING_RECEIPT, FIRE_SPOTCHECK_RESULT, MATERIAL_TEST, FUNCTIONAL_TEST], labels: [conclusion], review_terms: [不合格, 不予, 未通过, 整改, 不符合], when: {}, required: true}

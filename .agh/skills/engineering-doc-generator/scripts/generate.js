@@ -109,7 +109,7 @@ function buildFacts(bundle) {
   put('contract_amount', m.contract_amount || c.contract_amount);
   put('project_type', m.project_type || '房屋建筑工程');
   put('rules_profile', m.rules_profile || 'housing-construction');
-  put('file_count', String(m.file_count || files.length || ''));
+  put('file_count', String(files.length));
   put('current_date', getCurrentDate());
 
   const conflicts = Array.isArray(c.conflicts)
@@ -222,6 +222,30 @@ function prepareCase(caseDir) {
   const abs = path.resolve(caseDir);
   if (!fs.existsSync(abs)) throw new Error('case 不存在: ' + abs);
   const bundle = loadCaseBundle(abs);
+  const canonical = readJson(path.join(bundle.wd, 'audit-result.json'));
+  if (canonical) {
+    const m = canonical.manifest || {};
+    const nowDate = getCurrentDate();
+    const facts = {
+      available: {...m, file_count: canonical.summary.files, current_date: nowDate},
+      finding_counts: canonical.summary.finding_counts,
+      evaluation_counts: canonical.summary.evaluation_counts,
+      important_findings: canonical.findings,
+      conflicts: canonical.findings.filter((f) => f.finding_type === 'field_conflict'),
+      scope: canonical.scope,
+      overall: canonical.summary.overall,
+      legal_acceptance_decision: false,
+    };
+    fs.writeFileSync(path.join(bundle.wd,'facts.json'),JSON.stringify(facts,null,2),'utf8');
+    fs.writeFileSync(path.join(bundle.wd,'evidence.json'),fs.readFileSync(path.join(bundle.wd,'evidence-index.json')));
+    fs.writeFileSync(path.join(bundle.wd,'outline.md'),'# 情况说明大纲\n\n- 项目与核查范围\n- 核查结论\n- 主要问题与证据\n- 处理建议\n','utf8');
+    fs.writeFileSync(path.join(bundle.wd,'agent-brief.md'),
+      '# 文书执笔简报\n\n以 audit-result.json 和 statement-facts.json 为事实来源。统计、规则适用性和问题类型分开。'
+      + '正文已有脚本事实骨架，可据 evidence-index.json 润色，不补造合格、有效或全范围齐套。'
+      + '\n\n' + canonical.findings.map((f) => '- ' + f.title + '；' + f.suggestion).join('\n'),'utf8');
+    log('prepare → ' + bundle.wd);
+    return bundle.wd;
+  }
   if (!bundle.findings) {
     throw new Error(
       '缺少 _work/findings.json。请先运行 archive-audit 的确定性脚本:\n' +
@@ -326,6 +350,15 @@ function parseMarkdownToBlocks(md) {
       blocks.push({ type: 'table', heads, rows });
       continue;
     }
+    if (/^\d+[.)]\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\d+[.)]\s+/.test(lines[i])) {
+        items.push(lines[i].trim());
+        i++;
+      }
+      blocks.push({ type: 'ol', items });
+      continue;
+    }
     if (/^[-*]\s+/.test(line)) {
       const items = [];
       while (i < lines.length && /^[-*]\s+/.test(lines[i])) {
@@ -341,12 +374,14 @@ function parseMarkdownToBlocks(md) {
       lines[i].trim() &&
       !/^#/.test(lines[i]) &&
       !lines[i].trim().startsWith('|') &&
-      !/^[-*]\s+/.test(lines[i])
+      !/^[-*]\s+/.test(lines[i]) &&
+      !/^\d+[.)]\s+/.test(lines[i])
     ) {
       paras.push(lines[i].trim());
       i++;
     }
     if (paras.length) blocks.push({ type: 'p', text: paras.join('') });
+    else { blocks.push({ type: 'p', text: lines[i] }); i++; }
   }
   return blocks;
 }
@@ -354,14 +389,36 @@ function parseMarkdownToBlocks(md) {
 const TPL_FONT = {
   ascii: 'Calibri',
   hAnsi: 'Calibri',
-  eastAsia: '微软雅黑',
+  eastAsia: '宋体',
   cs: 'Times New Roman',
 };
-const TPL_SIZE = 21;
-const PAGE_CONTENT_WIDTH = 11906 - 1797 - 1797;
+const TPL_SIZE = 24;
+const PAGE_CONTENT_WIDTH = 11906 - 1440 - 1440;
 
 function runOpts(text, { bold = false, size = TPL_SIZE } = {}) {
   return { text: text || '', bold, size, font: TPL_FONT };
+}
+
+function inlineRuns(text, TextRun, options = {}) {
+  return String(text || '').split(/(\*\*[^*]+\*\*)/g).filter(Boolean).map((part) => {
+    const strong = part.startsWith('**') && part.endsWith('**');
+    return new TextRun(runOpts(strong ? part.slice(2,-2) : part, {...options, bold: strong || options.bold}));
+  });
+}
+
+function validateStatement(md, facts) {
+  const checks = {
+    file_count:/共接收文件(\d+)份/g, document_count:/逻辑资料(\d+)份/g,
+    missing_items:/缺失资料(\d+)项/g, misfiled_documents:/他项工程资料(\d+)份/g,
+    field_conflict_items:/字段冲突(\d+)项/g, duplicate_groups:/重复资料(\d+)组/g,
+    version_conflict_groups:/版本差异(\d+)组/g,
+  };
+  for (const [key, pattern] of Object.entries(checks)) {
+    const values = [...md.matchAll(pattern)].map((m) => Number(m[1]));
+    if (!values.length || values.some((v) => v !== facts[key])) throw new Error('正文统计与核查事实不符：' + key);
+  }
+  if (/XXXX|\$\{|请 Agent 在此|[A-Za-z]:[\\/]|sk-[A-Za-z0-9]{12}/.test(md)) throw new Error('正文存在占位符、路径或密钥');
+  if (facts.overall !== 'configured_checks_passed' && /全部齐套合格|资料全部合格/.test(md)) throw new Error('正文全量通过结论没有依据');
 }
 
 function calcColumnWidths(heads) {
@@ -400,44 +457,54 @@ async function buildDocxFromMarkdown(md, outputPath) {
   const children = [];
   const border = { style: BorderStyle.SINGLE, size: 4, color: '999999' };
   const borders = { top: border, bottom: border, left: border, right: border };
-  const paraSpacing = { after: 60, line: 276 };
+  const paraSpacing = { after: 120, line: 360 };
 
   for (const b of blocks) {
     if (b.type === 'h1') {
+      const marker = b.text.indexOf('竣工资料核查');
+      const titleParts = marker > 0 && b.text.length > 30 ? [b.text.slice(0,marker), b.text.slice(marker)] : [b.text];
+      const titleRuns = titleParts.flatMap((part,i) => [
+        ...(i ? [new TextRun({break:1})] : []),
+        ...inlineRuns(part,TextRun,{bold:true,size:32}),
+      ]);
       children.push(
         new Paragraph({
           alignment: AlignmentType.CENTER,
+          style: 'Title',
+          keepNext: true,
           spacing: paraSpacing,
-          children: [new TextRun(runOpts(b.text, { bold: true }))],
+          children: titleRuns,
         })
       );
     } else if (b.type === 'h2') {
       children.push(
         new Paragraph({
-          spacing: { before: 120, after: 60, line: 276 },
-          children: [new TextRun(runOpts(b.text, { bold: true }))],
+          keepNext: true,
+          spacing: { before: 180, after: 100, line: 360 },
+          children: inlineRuns(b.text, TextRun, { bold: true, size: 26 }),
         })
       );
     } else if (b.type === 'h3') {
       children.push(
         new Paragraph({
-          spacing: { before: 100, after: 60, line: 276 },
-          children: [new TextRun(runOpts(b.text, { bold: false }))],
+          keepNext: true,
+          spacing: { before: 140, after: 80, line: 360 },
+          children: inlineRuns(b.text, TextRun, { bold: true }),
         })
       );
     } else if (b.type === 'p') {
       children.push(
         new Paragraph({
           spacing: paraSpacing,
-          children: [new TextRun(runOpts(b.text))],
+          children: inlineRuns(b.text, TextRun),
         })
       );
-    } else if (b.type === 'ul') {
+    } else if (b.type === 'ul' || b.type === 'ol') {
       for (const item of b.items) {
         children.push(
           new Paragraph({
             spacing: paraSpacing,
-            children: [new TextRun(runOpts('• ' + item))],
+            children: inlineRuns((b.type === 'ul' ? '• ' : '') + item, TextRun),
           })
         );
       }
@@ -451,14 +518,14 @@ async function buildDocxFromMarkdown(md, outputPath) {
           children: [
             new Paragraph({
               spacing: { after: 0, line: 240 },
-              children: [new TextRun(runOpts(text || '', { bold, size: 18 }))],
+              children: inlineRuns(text, TextRun, { bold, size: 20 }),
             }),
           ],
         });
       const rows = [
-        new TableRow({ children: b.heads.map((h, i) => makeCell(h, i, true)) }),
+        new TableRow({ tableHeader: true, cantSplit: true, children: b.heads.map((h, i) => makeCell(h, i, true)) }),
         ...b.rows.map(
-          (r) => new TableRow({ children: b.heads.map((_, i) => makeCell(r[i] || '', i)) })
+          (r) => new TableRow({ cantSplit: true, children: b.heads.map((_, i) => makeCell(r[i] || '', i)) })
         ),
       ];
       children.push(
@@ -477,11 +544,12 @@ async function buildDocxFromMarkdown(md, outputPath) {
       {
         properties: {
           page: {
+            size: { width: 11906, height: 16838 },
             margin: {
               top: convertInchesToTwip(1),
               bottom: convertInchesToTwip(1),
-              left: convertInchesToTwip(1.25),
-              right: convertInchesToTwip(1.25),
+              left: convertInchesToTwip(1),
+              right: convertInchesToTwip(1),
             },
           },
         },
@@ -499,6 +567,8 @@ async function buildCase(caseDir, outRoot) {
   const bodyPath = path.join(wd, '正文.md');
   if (!fs.existsSync(bodyPath)) throw new Error('缺少正文.md，请先撰写: ' + bodyPath);
   const md = fs.readFileSync(bodyPath, 'utf8');
+  const factsPath = path.join(wd, 'statement-facts.json');
+  if (fs.existsSync(factsPath)) validateStatement(md, readJson(factsPath));
   if (/请 Agent 在此撰写/.test(md) && md.length < 400) {
     throw new Error('正文.md 仍是占位稿，请先由 Agent 写完整正文: ' + bodyPath);
   }
@@ -546,4 +616,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { prepareCase, buildCase };
+module.exports = { prepareCase, buildCase, buildDocxFromMarkdown, parseMarkdownToBlocks, validateStatement };
