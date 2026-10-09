@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Generate synthetic housing-construction demo PDF pack with GB50300-style forms."""
+"""Generate synthetic housing-construction demo PDF pack with heterogeneous form layouts."""
 from __future__ import annotations
 
 import json
@@ -11,10 +11,19 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from pdf_forms import (  # noqa: E402
     make_appearance_record,
+    make_asbuilt_drawing_note,
+    make_completion_pack,
+    make_construction_contract,
+    make_construction_permit,
     make_division_record,
     make_inspection_batch,
-    make_official_report,
+    make_material_test_report,
+    make_planning_permit,
+    make_planning_verify_cert,
+    make_quality_assessment,
     make_subitem_record,
+    make_supervision_contract,
+    make_tech_document,
 )
 
 CASE_ID = "demo-housing-mixed"
@@ -59,91 +68,77 @@ def main() -> None:
         shutil.rmtree(CASE)
     FILES.mkdir(parents=True)
 
-    make_official_report(
+    make_planning_permit(
         FILES / "01-准备/A-01-建设工程规划许可证.pdf",
-        title="建设工程规划许可证",
         meta=meta(文件编号="建规证字〔2023〕第118号"),
         body_lines=[
             "依据城乡规划相关规定，核准本工程建设规模：地上建筑面积约18600平方米。",
-            "附图及附件与本证同时使用。本证为合成演示填写。",
+            "附图及附件名称见许可证附件清单，与本证同时使用。",
         ],
-        form_hint="版式参考：地方规划许可证明文件常见栏目",
-        doc_kind="工程准备",
     )
-    make_official_report(
+    make_construction_permit(
         FILES / "01-准备/A-02-建筑工程施工许可证.pdf",
-        title="建筑工程施工许可证",
         meta=meta(文件编号="施许字〔2024〕第045号"),
         body_lines=[
             "合同工期：2024-03-01 至 2025-11-20。",
-            "建设资金已落实，施工图审查合格，具备开工条件（合成）。",
+            "建设资金已落实，施工图审查合格，具备开工条件。",
         ],
-        form_hint="版式参考：施工许可证明文件常见栏目",
         scan_style=True,
-        doc_kind="工程准备",
     )
-    make_official_report(
+    make_construction_contract(
         FILES / "01-准备/A-03-建设工程施工合同.pdf",
-        title="建设工程施工合同",
         meta=meta(文件编号="YG-XFZX-HT-2024-001"),
-        body_lines=[
-            f"发包人（建设单位）：{P['建设单位']}",
-            f"承包人（施工单位）：{P['施工单位']}",
-            f"签约合同价（人民币）：{P['合同金额（元）']} 元（{P_FLAT['contract_amount_cn']}）。",
-            "工程质量标准：合格。争议解决方式：向工程所在地人民法院起诉。",
-        ],
-        form_hint="版式参考：施工合同首页要素（合成填写）",
-        doc_kind="合同",
+        body_lines=["工程质量标准：合格。争议解决方式：向工程所在地人民法院起诉。"],
+        amount_cn=P_FLAT["contract_amount_cn"],
     )
-    make_official_report(
+    make_supervision_contract(
         FILES / "01-准备/A-04-建设工程委托监理合同.pdf",
-        title="建设工程委托监理合同",
         meta=meta(文件编号="YG-XFZX-JLHT-2024-001"),
-        body_lines=[
-            f"委托人：{P['建设单位']}",
-            f"监理人：{P['监理单位']}",
-            "监理服务期限：与施工工期一致。",
-        ],
-        doc_kind="合同",
+        body_lines=["监理服务内容含旁站、巡视与平行检验。"],
     )
 
-    make_official_report(
+    make_tech_document(
         FILES / "02-监理/B-01-监理规划.pdf",
         title="监理规划",
         meta=meta(文件编号="JL-GH-2024-01"),
-        body_lines=[
-            "本规划明确旁站、巡视、平行检验等监理工作制度。",
-            "总监理工程师：周某某（合成署名）。",
+        org_header=P["监理单位"],
+        chapters=[
+            ("1 工程概况", [f"项目名称：{P['项目名称']}", f"项目编号：{P['项目编号']}"]),
+            ("2 监理工作内容", ["本规划明确旁站、巡视、平行检验等监理工作制度。", "总监理工程师：周海涛。"]),
+            ("3 监理组织", [f"监理单位：{P['监理单位']}", f"施工单位：{P['施工单位']}"]),
         ],
-        doc_kind="监理文件",
     )
-    make_official_report(
+    make_tech_document(
         FILES / "02-监理/B-02-监理实施细则-主体结构.pdf",
         title="专业监理实施细则（主体结构）",
         meta=meta(文件编号="JL-XZ-2024-03"),
-        body_lines=["针对钢筋、模板、混凝土分项明确控制要点与旁站范围。"],
-        doc_kind="监理文件",
+        org_header=P["监理单位"],
+        chapters=[
+            ("1 编制依据", ["GB50300、设计文件及监理规划。"]),
+            ("2 控制要点", ["针对钢筋、模板、混凝土分项明确控制要点与旁站范围。"]),
+        ],
     )
-    make_official_report(
+    make_quality_assessment(
         FILES / "02-监理/B-03-工程质量评估报告.pdf",
-        title="工程质量评估报告",
         meta=meta(文件编号="JL-PG-2025-11", 项目编号="YG-XFZX-JL-2024-019"),
         body_lines=[
             "监理单位对主体及装饰装修工程质量进行评估。",
+            "各分部工程质量验收合格，质量控制资料基本齐全。",
             "评估结论：同意进入竣工验收程序。",
-            "备注：页眉系统导出项目编号存在误填，见上方项目编号字段。",
         ],
-        form_hint="版式参考：监理质量评估报告常见栏目",
         scan_style=True,
-        doc_kind="监理评估",
     )
 
-    make_official_report(
+    make_tech_document(
         FILES / "03-施工/C-01-施工组织设计.pdf",
         title="施工组织设计",
         meta=meta(文件编号="SG-ZZ-2024-01"),
-        body_lines=["采用装配式脚手架与分区流水施工。", "安全目标：零重大事故。"],
-        doc_kind="施工文件",
+        org_header=P["施工单位"],
+        chapters=[
+            ("1 编制说明", [f"工程地址：{P['工程地址']}", f"合同金额（元）：{P['合同金额（元）']}"]),
+            ("2 施工部署", ["采用装配式脚手架与分区流水施工。", "安全目标：零重大事故。"]),
+            ("3 进度计划", [f"开工日期：{P['开工日期']}；竣工日期：{P['竣工日期']}"]),
+        ],
     )
     make_inspection_batch(
         FILES / "03-施工/C-02-检验批质量验收记录-钢筋工程-01.pdf",
@@ -182,7 +177,7 @@ def main() -> None:
             ("钢筋连接方式及接头", "3/3", "机械连接接头检验合格", "合格"),
         ],
         general_rows=[("钢筋表面", "10/10", "无严重锈蚀油污", "合格")],
-        note="（与 JYP-GJ-2024-011 同编号的另一扫描件，用于测试疑似重复；文件名不含「副本」。）",
+        note="",
         scan_style=True,
     )
     make_inspection_batch(
@@ -222,64 +217,74 @@ def main() -> None:
         conclusion="合格",
     )
 
-    make_official_report(
+    make_material_test_report(
         FILES / "04-检测/D-01-材料进场报审及复试报告-钢筋.pdf",
-        title="材料进场报审及复试报告",
         meta=meta(文件编号="JC-GJ-2024-066"),
-        body_lines=[
-            "材料名称：热轧带肋钢筋 HRB400E",
-            "规格：Φ12 / Φ18",
-            "复试结论：合格。",
-            "检测机构：云港市建设工程质量检测中心（合成）",
-            "对应部位：主体结构钢筋工程。",
+        report_title="材料进场报审及复试报告",
+        sample_rows=[
+            ("材料名称", "热轧带肋钢筋 HRB400E"),
+            ("规格", "Φ12 / Φ18"),
+            ("对应部位", "主体结构钢筋工程"),
+            ("复试项目", "拉伸 / 弯曲"),
         ],
-        form_hint="版式参考：材料进场/复试报告常见栏目",
+        conclusion="合格",
+        body_lines=["检测机构见证取样，结果符合设计与规范要求。"],
         scan_style=True,
-        doc_kind="材料检测",
     )
-    make_official_report(
+    make_material_test_report(
         FILES / "04-检测/D-01-材料进场报审及复试报告-混凝土试块.pdf",
-        title="检测报告",
         meta=meta(文件编号="JC-HNT-2024-102"),
-        body_lines=[
-            "检测项目：混凝土抗压强度",
-            "强度等级：C30",
-            "结论：合格。",
-            "对应分部：主体结构。",
+        report_title="检测报告",
+        sample_rows=[
+            ("检测项目", "混凝土抗压强度"),
+            ("强度等级", "C30"),
+            ("对应分部", "主体结构"),
+            ("龄期", "28d"),
         ],
-        doc_kind="材料检测",
+        conclusion="合格",
     )
 
-    make_official_report(
+    make_completion_pack(
         FILES / "05-验收/工程竣工预验收报告.pdf",
         title="工程竣工预验收报告",
         meta=meta(文件编号="YS-2025-11-05"),
         body_lines=[
-            "预验收时间：2025-11-05。",
-            "预验收意见：基本具备正式竣工验收条件，整改完成后组织正式验收。",
-            "注意：本文为预验收，不能替代《工程竣工验收报告》。",
+            "建设单位组织施工、监理等单位于2025年11月5日进行竣工预验收。",
+            "查验分部工程验收记录、质量控制资料及安全和主要使用功能抽查记录。",
+            "预验收意见：工程质量基本符合设计要求，局部整改完成后组织正式竣工验收。",
         ],
-        form_hint="相似件：预验收 ≠ 正式竣工验收报告",
+        form_code="预验收记录表",
+        conclusion="预验收结论：基本具备正式竣工验收条件",
+        report_date="2025年11月5日",
         scan_style=True,
-        doc_kind="竣工验收",
+        five_party=False,
     )
-    make_official_report(
+    make_completion_pack(
         FILES / "05-验收/E-02-施工单位工程竣工报告.pdf",
         title="施工单位工程竣工报告",
         meta=meta(文件编号="SG-JG-2025-01", **{"合同金额（元）": "92000000"}),
         body_lines=[
-            "工程已按合同约定完成，业务质量符合设计与规范要求，申请竣工验收。",
-            "自行统计完成合同价款约：92000000 元。",
+            "本工程已按施工图设计文件及合同约定完成全部施工内容。",
+            "工程质量控制资料完整，安全和主要使用功能检验资料齐全，观感质量综合评价为好。",
+            "合同金额（元）：92000000。施工单位自评工程质量合格，申请组织竣工验收。",
         ],
-        form_hint="版式参考：施工单位竣工报告常见栏目",
-        doc_kind="竣工验收",
+        form_code="施工单位竣工报告",
+        conclusion="本工程达到竣工验收条件，申请组织竣工验收",
+        report_date="2025年11月18日",
+        five_party=False,
     )
-    make_official_report(
+    make_completion_pack(
         FILES / "05-验收/E-03-设计单位工程质量检查报告.pdf",
         title="设计单位工程质量检查报告",
         meta=meta(文件编号="SJ-JC-2025-01"),
-        body_lines=["设计单位现场检查认为工程施工符合设计文件要求。", "同意竣工验收。"],
-        doc_kind="竣工验收",
+        body_lines=[
+            "设计单位对工程实体与设计文件符合性进行现场检查。",
+            "检查意见：施工质量符合设计文件要求，同意竣工验收。",
+        ],
+        form_code="设计单位质量检查报告",
+        conclusion="同意竣工验收",
+        report_date="2025年11月18日",
+        five_party=False,
     )
     make_appearance_record(
         FILES / "05-验收/单位工程观感质量检查记录.pdf",
@@ -288,33 +293,29 @@ def main() -> None:
         grade="好",
     )
 
-    make_official_report(
+    make_asbuilt_drawing_note(
         FILES / "06-竣工图/F-01-建筑竣工图说明.pdf",
-        title="工程竣工图（建筑）说明",
         meta=meta(文件编号="JG-TZ-JZ-2025"),
+        specialty="建筑",
+        drawing_nos="建竣-01 至 建竣-28",
         body_lines=[
             "本册为建筑专业竣工图目录与变更汇总说明。",
             "设计变更：共 3 份，已在竣工图中云线标注。",
-            "图纸编号：建竣-01 至 建竣-28。",
         ],
-        form_hint="版式参考：公开归档指南中竣工图说明/目录要素",
         scan_style=True,
-        doc_kind="竣工图",
     )
-    make_official_report(
+    make_asbuilt_drawing_note(
         FILES / "06-竣工图/F-01-结构竣工图说明.pdf",
-        title="工程竣工图（结构）说明",
         meta=meta(文件编号="JG-TZ-JG-2025"),
-        body_lines=["结构专业竣工图已按变更更新。", "图纸编号：结竣-01 至 结竣-16。"],
-        doc_kind="竣工图",
+        specialty="结构",
+        drawing_nos="结竣-01 至 结竣-16",
+        body_lines=["结构专业竣工图已按变更更新。"],
     )
 
-    make_official_report(
+    make_planning_verify_cert(
         FILES / "07-专项/G-02-规划核实证明.pdf",
-        title="建设工程规划核实合格证",
         meta=meta(文件编号="GHHS-2025-088"),
-        body_lines=["核实结论：符合规划许可要求（合成）。"],
-        doc_kind="专项",
+        body_lines=["经现场核实，本工程平面位置、建筑规模符合规划许可要求，准予规划核实合格。"],
     )
 
     other = {
@@ -322,32 +323,35 @@ def main() -> None:
         "项目编号": "YG-SZ-GL-2023-007",
         "建设单位": "云港市市政公用事业中心",
         "施工单位": "海川市政工程有限公司",
-        "监理单位": "（本文件未载明）",
-        "设计单位": "（本文件未载明）",
+        "监理单位": "蓝桥工程监理有限公司",
+        "设计单位": "云港市政设计研究院有限公司",
         "工程地址": "云港市滨河路沿线",
         "开工日期": "2023-05-10",
         "竣工日期": "2024-08-30",
         "合同金额（元）": "120000000",
         "文件编号": "SZ-GL-HT-2023-001",
     }
-    make_official_report(
+    make_construction_contract(
         FILES / "01-准备/滨河路市政管廊一期-施工合同.pdf",
-        title="建设工程施工合同",
         meta=other,
         body_lines=[
-            "本文件属于另一项目，误放入本教学楼资料包。",
-            "发包人：云港市市政公用事业中心（合成）",
-            "承包人：海川市政工程有限公司（合成）",
+            "工程质量标准：合格。",
+            "承包范围：滨河路市政综合管廊土建及附属工程。",
         ],
-        doc_kind="合同",
+        amount_cn="壹亿贰仟万元整",
     )
-    make_official_report(
+    make_completion_pack(
         FILES / "05-验收/滨河路市政管廊一期-竣工验收报告.pdf",
         title="工程竣工验收报告",
         meta={**other, "文件编号": "SZ-GL-JGYS-2024-01"},
-        body_lines=["滨河路市政管廊一期工程竣工验收报告（他项工程，不能计入本项目正式验收）。"],
-        form_hint="他项工程正式竣工验收报告，不能计入本项目 E-01",
-        doc_kind="竣工验收",
+        body_lines=[
+            "本工程已完成各分部工程施工，材料均有出厂质量证明及见证送检报告，检测结果合格。",
+            "质量控制资料齐全，安全和主要使用功能检验符合要求，观感质量综合评价为一般。",
+            "综合评定：工程质量合格，一致同意验收。",
+        ],
+        form_code="GD-E1-914",
+        conclusion="验收合格",
+        report_date="2024年9月5日",
     )
 
     pdfs = sorted(p.relative_to(CASE).as_posix() for p in FILES.rglob("*.pdf"))
@@ -359,12 +363,19 @@ def main() -> None:
             "project_name", "project_code", "owner", "contractor", "supervisor",
             "designer", "address", "start_date", "finish_date", "contract_amount",
         )},
-        "data_note": "合成演示 PDF；检验批/分项/分部/观感表式参考 GB50300-2013 附录；非真实工程档案。",
+        "data_note": (
+            "合成演示 PDF；按文种异构版式（规划/施工许可证、GF合同、监理/施组技术文件、"
+            "检测报告、竣工验收封面表、竣工图目录、GB50300附录验收表）；非真实工程档案。"
+        ),
         "file_count": len(pdfs),
         "file_format": "pdf",
         "form_reference": [
             "reference/public-pdfs/gb50300-2013-acceptance-standard.pdf",
             "reference/public-pdfs/acceptance-check-forms-unified.pdf",
+            "reference/public-pdfs/construction-permit-sample-sd.pdf",
+            "reference/public-pdfs/construction-contract-gf2017.pdf",
+            "reference/public-pdfs/unit-completion-acceptance-report.pdf",
+            "reference/public-pdfs/zj-unified-forms-2025.pdf",
         ],
     }
     (CASE / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -385,7 +396,10 @@ def main() -> None:
             ],
             "optional_codes": ["B-02", "G-02"],
             "scan_style_pdfs_note": "说明性字段，不作为齐套成败标准",
-            "form_style_note": "验收类表式仿 GB50300 附录；仍为合成数据",
+            "form_style_note": (
+                "文种异构：许可证/合同/技术文件/检测报告/竣工验收封面/竣工图目录/GB50300附录；"
+                "仍为合成数据"
+            ),
         },
         "expected_highlights": {
             "missing_required": [

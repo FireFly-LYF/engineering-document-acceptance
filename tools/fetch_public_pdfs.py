@@ -25,6 +25,26 @@ DOWNLOADS = [
         "acceptance-check-forms-unified.pdf",
         "https://www.hzcinda.com/upload/at/file/20220510/1652145437126743mwm8.pdf",
     ),
+    (
+        "construction-permit-application-sd.pdf",
+        "https://jnszjj.jining.gov.cn/module/download/downfile.jsp?classid=0&filename=4f8f58018a71433abe9e7c21865a0a6f.pdf",
+    ),
+    (
+        "construction-permit-sample-sd.pdf",
+        "http://app.shandong.gov.cn/attach/2015/24/38-1.pdf",
+    ),
+    (
+        "construction-contract-gf2017.pdf",
+        "https://www.ahsz.gov.cn/group1/M00/3A/F2/Cpc8VmV5eV6AXmFVACavp3R8Q-o444.pdf",
+    ),
+    (
+        "unit-completion-acceptance-report.pdf",
+        "https://download.s21i.faiusr.com/31941469/0/0/ABUIABA9GAAghuPuqwYoztvz2gE.pdf?f=%E5%8D%95%E4%BD%8D%E7%AB%A3%E5%B7%A5%E9%AA%8C%E6%94%B6%E6%8A%A5%E5%91%8A.pdf&v=1702605190",
+    ),
+    (
+        "zj-unified-forms-2025.pdf",
+        "https://zjjcmspublic.oss-cn-hangzhou-zwynet-d01-a.internet.cloud.zj.gov.cn/jcms_files/jcms1/web3162/site/attach/0/21c6d07177ec4c5990c03604c4e0a5f1.pdf",
+    ),
 ]
 
 SOURCES = """公开 PDF 来源索引（规则/空白样表类，非真实竣工档案包）
@@ -53,6 +73,27 @@ SOURCES = """公开 PDF 来源索引（规则/空白样表类，非真实竣工�
    用途：检验批等检查用表版式参考
    注意：企业站点转载，非政府官网原文
 
+5. construction-permit-sample-sd.pdf / construction-permit-application-sd.pdf
+   名称：山东省建筑工程施工许可证样表 / 申请表
+   URL：http://app.shandong.gov.cn/attach/2015/24/38-1.pdf
+        https://jnszjj.jining.gov.cn/module/download/downfile.jsp?classid=0&filename=4f8f58018a71433abe9e7c21865a0a6f.pdf
+   用途：施工许可证密表栏目（合成 make_construction_permit）
+
+6. construction-contract-gf2017.pdf
+   名称：建设工程施工合同（示范文本）GF-2017-0201
+   URL：https://www.ahsz.gov.cn/group1/M00/3A/F2/Cpc8VmV5eV6AXmFVACavp3R8Q-o444.pdf
+   用途：合同封面 + 协议书首页（合成 make_construction_contract）
+
+7. unit-completion-acceptance-report.pdf
+   名称：单位竣工验收报告（GD-E1 类空白/样表）
+   URL：见 DOWNLOADS 列表
+   用途：竣工验收封面 + 工程概况（合成 make_completion_pack）
+
+8. zj-unified-forms-2025.pdf
+   名称：浙江省建筑工程统一用表相关材料
+   URL：见 DOWNLOADS 列表
+   用途：统一用表目录与表头结构参考
+
 网上有入口但多为 DOC/XLS、或需办事系统登录：
 
 - 济南竣工验收备案办事指南空白样表（多为 docx）
@@ -65,7 +106,7 @@ SOURCES = """公开 PDF 来源索引（规则/空白样表类，非真实竣工�
 
 不建议直接抓取作为演示项目包：完整真实工程竣工档案扫描包。
 
-下一步：用公开目录作规则；用空白表结构 + 合成项目信息生成演示 PDF 包（非真实档案）。
+造数：按文种异构 builder（tools/pdf_forms.py）+ 合成项目信息生成 cases/ 下演示 PDF（非真实档案）。
 """
 
 

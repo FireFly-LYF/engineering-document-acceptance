@@ -12,11 +12,15 @@
   "start_date": "2024-03-01",
   "finish_date": "2025-11-20",
   "contract_amount": "86500000",
-  "data_note": "合成演示 PDF；检验批/分项/分部/观感表式参考 GB50300-2013 附录；非真实工程档案。",
+  "data_note": "合成演示 PDF；按文种异构版式（规划/施工许可证、GF合同、监理/施组技术文件、检测报告、竣工验收封面表、竣工图目录、GB50300附录验收表）；非真实工程档案。",
   "file_count": 24,
   "file_format": "pdf",
   "form_reference": [
     "reference/public-pdfs/gb50300-2013-acceptance-standard.pdf",
-    "reference/public-pdfs/acceptance-check-forms-unified.pdf"
+    "reference/public-pdfs/acceptance-check-forms-unified.pdf",
+    "reference/public-pdfs/construction-permit-sample-sd.pdf",
+    "reference/public-pdfs/construction-contract-gf2017.pdf",
+    "reference/public-pdfs/unit-completion-acceptance-report.pdf",
+    "reference/public-pdfs/zj-unified-forms-2025.pdf"
   ]
 }

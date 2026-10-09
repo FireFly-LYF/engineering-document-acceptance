@@ -41,7 +41,22 @@ python tools/generate_near_miss_case.py
 python tools/fetch_public_pdfs.py
 ```
 
-合成 PDF 版式仿公开空白表/国标附录（见 `reference/public-pdfs/` 与 `tools/pdf_forms.py`）：检验批/分项/分部/观感对齐 GB50300-2013 附录 E–H；许可、合同、报告类用双框封面+著录表+签章栏。内容仍为合成填写，**不是**真实工程档案扫描件。
+合成 PDF **按文种异构版式**（见 `reference/public-pdfs/` 与 `tools/pdf_forms.py`），避免「每份都是同一封面」：
+
+| 文种 | 版式参考 | builder |
+|------|----------|---------|
+| 规划/施工许可证 | 证照红框 / 住建部施工许可密表 | `make_planning_permit` / `make_construction_permit` |
+| 施工合同 | GF-2017-0201 封面+协议书 | `make_construction_contract` |
+| 监理合同 | 蓝条题头+甲乙双方卡片 | `make_supervision_contract` |
+| 监理规划/细则/施组 | 章条技术文件 | `make_tech_document` |
+| 质量评估 | 单位抬头信纸 | `make_quality_assessment` |
+| 材料检测 | 实验室结果表 | `make_material_test_report` |
+| 竣工/预验收报告 | GD-E1 封面+工程概况 | `make_completion_pack` |
+| 竣工图说明 | 图纸目录表 | `make_asbuilt_drawing_note` |
+| 规划核实 | 绿色证头 | `make_planning_verify_cert` |
+| 检验批/分项/分部/观感 | GB50300-2013 附录 E–H | `make_inspection_batch` 等 |
+
+内容仍为合成填写，**不是**真实工程档案扫描件。公开参考 PDF 用 `python tools/fetch_public_pdfs.py` 拉取。
 
 ## 环境要求
 
@@ -123,7 +138,7 @@ node scripts/generate.js build --case ../../../cases/demo-housing-mixed --out ..
 
 | 脚本 | 用途 |
 |------|------|
-| `pdf_forms.py` | GB50300 风格表样与报告封面绘制 |
+| `pdf_forms.py` | 按文种异构 PDF 版式（许可/合同/检测/验收/GB50300 等） |
 | `generate_demo_case.py` | 重新生成 `demo-housing-mixed` |
 | `generate_near_miss_case.py` | 重新生成 `demo-housing-near-miss` |
 | `fetch_public_pdfs.py` | 拉取公开归档指南/目录类 PDF 到 `reference/` |

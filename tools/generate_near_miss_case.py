@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Near-miss housing demo pack with GB50300-style forms."""
+"""Near-miss housing demo pack with heterogeneous form layouts."""
 from __future__ import annotations
 
 import json
@@ -10,10 +10,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 from pdf_forms import (  # noqa: E402
+    make_asbuilt_drawing_note,
+    make_completion_pack,
+    make_construction_contract,
+    make_construction_permit,
     make_division_record,
     make_inspection_batch,
-    make_official_report,
+    make_planning_permit,
+    make_planning_verify_cert,
+    make_quality_assessment,
     make_subitem_record,
+    make_supervision_contract,
+    make_tech_document,
     make_unreadable,
 )
 
@@ -86,65 +94,58 @@ def main() -> None:
         shutil.rmtree(CASE)
     FILES.mkdir(parents=True)
 
-    make_official_report(
+    make_planning_permit(
         FILES / "01-准备/A-01-建设工程规划许可证.pdf",
-        title="建设工程规划许可证",
         meta=meta(文件编号="建规证字〔2023〕第156号"),
         body_lines=["核准建设规模：实验楼加固约6400平方米。"],
-        doc_kind="工程准备",
     )
-    make_official_report(
+    make_construction_permit(
         FILES / "01-准备/A-02-建筑工程施工许可证.pdf",
-        title="建筑工程施工许可证",
         meta=meta(文件编号="施许字〔2024〕第078号", 开工日期="2024-04-01"),
         body_lines=[
-            "许可证编号：施许字〔2024〕第078号。",
-            "备注：证载开工日期与合同/manifest 不一致，用于本工程字段冲突测试。",
+            "建设资金已落实，施工图审查合格，具备开工条件。",
+            "合同工期按证载开工日期至竣工日期执行。",
         ],
         scan_style=True,
-        doc_kind="工程准备",
+        scale_note="加固约6400㎡",
     )
-    make_official_report(
+    make_construction_contract(
         FILES / "01-准备/A-03-建设工程施工合同.pdf",
-        title="建设工程施工合同",
         meta=meta(文件编号="YG-XFZX-SY-HT-2024-001"),
-        body_lines=[
-            f"发包人：{P['建设单位']}",
-            f"承包人：{P['施工单位']}",
-            f"签约合同价：{P['合同金额（元）']} 元（{P_FLAT['contract_amount_cn']}）。",
-            f"合同工期：{P['开工日期']} 至 {P['竣工日期']}。",
-        ],
-        doc_kind="合同",
+        body_lines=[f"合同工期：{P['开工日期']} 至 {P['竣工日期']}。"],
+        amount_cn=P_FLAT["contract_amount_cn"],
     )
-    make_official_report(
+    make_supervision_contract(
         FILES / "01-准备/A-04-建设工程委托监理合同.pdf",
-        title="建设工程委托监理合同",
         meta=meta(文件编号="YG-XFZX-SY-JLHT-2024-001"),
-        body_lines=[f"委托人：{P['建设单位']}", f"监理人：{P['监理单位']}"],
-        doc_kind="合同",
+        body_lines=["针对加固改造明确旁站范围。"],
     )
 
-    make_official_report(
+    make_tech_document(
         FILES / "02-监理/B-01-监理规划.pdf",
         title="监理规划",
         meta=meta(文件编号="JL-GH-SY-2024-01"),
-        body_lines=["针对加固改造工程明确旁站与平行检验制度。"],
-        doc_kind="监理文件",
+        org_header=P["监理单位"],
+        chapters=[
+            ("1 工程概况", [f"项目名称：{P['项目名称']}"]),
+            ("2 监理工作内容", ["针对加固改造工程明确旁站与平行检验制度。"]),
+        ],
     )
-    make_official_report(
+    make_quality_assessment(
         FILES / "02-监理/B-03-工程质量评估报告.pdf",
-        title="工程质量评估报告",
         meta=meta(文件编号="JL-PG-SY-2025-12"),
         body_lines=["加固部位质量评估结论：同意竣工验收。"],
-        doc_kind="监理评估",
     )
 
-    make_official_report(
+    make_tech_document(
         FILES / "03-施工/C-01-施工组织设计.pdf",
         title="施工组织设计",
         meta=meta(文件编号="SG-ZZ-SY-2024-01"),
-        body_lines=["采用分段加固、夜间浇筑控制裂缝。"],
-        doc_kind="施工文件",
+        org_header=P["施工单位"],
+        chapters=[
+            ("1 编制说明", [f"项目编号：{P['项目编号']}"]),
+            ("2 施工部署", ["采用分段加固、夜间浇筑控制裂缝。"]),
+        ],
     )
     make_inspection_batch(
         FILES / "03-施工/C-02-检验批质量验收记录-混凝土加固-01.pdf",
@@ -185,69 +186,83 @@ def main() -> None:
 
     make_unreadable(FILES / "04-检测/扫描件-页面损坏.pdf")
 
-    make_official_report(
+    make_completion_pack(
         FILES / "05-验收/工程竣工预验收报告.pdf",
         title="工程竣工预验收报告",
         meta=meta(文件编号="YS-SY-2025-12-01"),
         body_lines=[
-            "预验收时间：2025-12-01。",
-            "预验收意见：整改完成后组织正式验收。",
-            "注意：本文为预验收，不能替代《工程竣工验收报告》。",
+            "建设单位组织施工、监理等单位于2025年12月1日进行竣工预验收。",
+            "查验加固分部验收记录、质量控制资料及主要使用功能抽查情况。",
+            "预验收意见：局部整改完成后组织正式竣工验收。",
         ],
+        form_code="预验收记录表",
+        conclusion="预验收结论：基本具备正式竣工验收条件",
+        report_date="2025年12月1日",
         scan_style=True,
-        doc_kind="竣工验收",
+        five_party=False,
     )
-    make_official_report(
+    make_completion_pack(
         FILES / "05-验收/E-02-施工单位工程竣工报告.pdf",
         title="施工单位工程竣工报告",
         meta=meta(文件编号="SG-JG-SY-2025-01"),
-        body_lines=["加固改造已按合同完成，申请竣工验收。"],
-        doc_kind="竣工验收",
+        body_lines=[
+            "本工程加固改造内容已按设计文件及合同约定完成。",
+            "工程质量控制资料完整，安全和主要使用功能检验符合要求。",
+            "施工单位自评工程质量合格，申请组织竣工验收。",
+        ],
+        form_code="施工单位竣工报告",
+        conclusion="本工程达到竣工验收条件，申请组织竣工验收",
+        report_date="2025年12月10日",
+        five_party=False,
     )
-    make_official_report(
+    make_completion_pack(
         FILES / "05-验收/E-03-设计单位工程质量检查报告.pdf",
         title="设计单位工程质量检查报告",
         meta=meta(文件编号="SJ-JC-SY-2025-01"),
-        body_lines=["设计单位检查认为符合加固设计文件要求。"],
-        doc_kind="竣工验收",
+        body_lines=[
+            "设计单位对加固部位实体与加固设计文件符合性进行现场检查。",
+            "检查意见：施工质量符合加固设计文件要求，同意竣工验收。",
+        ],
+        form_code="设计单位质量检查报告",
+        conclusion="同意竣工验收",
+        report_date="2025年12月10日",
+        five_party=False,
     )
-    make_official_report(
+    make_asbuilt_drawing_note(
         FILES / "06-竣工图/F-01-结构竣工图说明.pdf",
-        title="工程竣工图（结构）说明",
         meta=meta(文件编号="JG-TZ-SY-2025"),
-        body_lines=["结构加固竣工图已按变更更新。", "图纸编号：结竣-SY-01 至 结竣-SY-12。"],
+        specialty="结构",
+        drawing_nos="结竣-SY-01 至 结竣-SY-12",
+        body_lines=["结构加固竣工图已按变更更新。"],
         scan_style=True,
-        doc_kind="竣工图",
     )
-    make_official_report(
+    make_planning_verify_cert(
         FILES / "07-专项/G-02-规划核实证明.pdf",
-        title="建设工程规划核实合格证",
         meta=meta(文件编号="GHHS-SY-2025-021"),
-        body_lines=["核实结论：符合规划许可要求（合成）。"],
-        doc_kind="专项",
+        body_lines=["经现场核实，本工程平面位置、建筑规模符合规划许可要求，准予规划核实合格。"],
     )
 
-    make_official_report(
+    make_construction_contract(
         FILES / "01-准备/建设工程施工合同-教学楼单体.pdf",
-        title="建设工程施工合同",
         meta=NEAR_CAMPUS,
         body_lines=[
-            "本文件属于同校区另一单体（教学楼改扩建），误归入实验楼加固资料包。",
-            "请按项目名称/编号区分，不得计入本实验楼齐套。",
+            "工程质量标准：合格。",
+            "承包范围：教学楼改扩建土建、装饰及安装工程。",
         ],
-        form_hint="近邻：同校区、同建设方、编号前缀相近",
-        doc_kind="合同",
+        amount_cn="捌仟陆佰伍拾万元整",
     )
-    make_official_report(
+    make_completion_pack(
         FILES / "05-验收/工程竣工验收报告-学府路小学.pdf",
         title="工程竣工验收报告",
         meta=NEAR_ROAD,
         body_lines=[
-            "云港新区学府路小学教学楼工程竣工验收报告。",
-            "同学府路、同学段近似工程，不能计入本实验楼正式验收（E-01）。",
+            "本工程已完成各分部工程施工，材料均有出厂质量证明及见证送检报告，检测结果合格。",
+            "质量控制资料齐全，安全和主要使用功能检验符合要求，观感质量综合评价为好。",
+            "综合评定：工程质量合格，一致同意验收。",
         ],
-        form_hint="近邻：同学府路小学正式验收，文件名含竣工验收报告",
-        doc_kind="竣工验收",
+        form_code="GD-E1-914",
+        conclusion="验收合格",
+        report_date="2024年7月8日",
     )
 
     pdfs = sorted(p.relative_to(CASE).as_posix() for p in FILES.rglob("*.pdf"))
@@ -259,13 +274,16 @@ def main() -> None:
             "project_name", "project_code", "owner", "contractor", "supervisor",
             "designer", "address", "start_date", "finish_date", "contract_amount",
         )},
-        "data_note": "近邻混淆演示包；表式参考 GB50300 附录与公开空白样表；非真实档案。",
+        "data_note": "近邻混淆演示包；文种异构版式参考公开空白样表与 GB50300 附录；非真实档案。",
         "file_count": len(pdfs),
         "file_format": "pdf",
         "focus": ["near_miss_misfile", "start_date_conflict", "missing_material_test", "unreadable_scan"],
         "form_reference": [
             "reference/public-pdfs/gb50300-2013-acceptance-standard.pdf",
             "reference/public-pdfs/acceptance-check-forms-unified.pdf",
+            "reference/public-pdfs/construction-permit-sample-sd.pdf",
+            "reference/public-pdfs/construction-contract-gf2017.pdf",
+            "reference/public-pdfs/unit-completion-acceptance-report.pdf",
         ],
     }
     (CASE / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -281,7 +299,7 @@ def main() -> None:
             "expected_field_conflict_count": 1,
             "optional_codes": ["B-02", "G-02"],
             "no_duplicate_file_no_test": "本包不测同编号重复（见 demo-housing-mixed）",
-            "form_style_note": "验收类表式仿 GB50300 附录；仍为合成数据",
+            "form_style_note": "文种异构版式 + GB50300 附录；仍为合成数据",
         },
         "expected_highlights": {
             "missing_required": [

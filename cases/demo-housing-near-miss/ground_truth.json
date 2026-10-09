@@ -12,7 +12,7 @@
       "G-02"
     ],
     "no_duplicate_file_no_test": "本包不测同编号重复（见 demo-housing-mixed）",
-    "form_style_note": "验收类表式仿 GB50300 附录；仍为合成数据"
+    "form_style_note": "文种异构版式 + GB50300 附录；仍为合成数据"
   },
   "expected_highlights": {
     "missing_required": [

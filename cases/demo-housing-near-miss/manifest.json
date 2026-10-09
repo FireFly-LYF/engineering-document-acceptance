@@ -12,7 +12,7 @@
   "start_date": "2024-05-08",
   "finish_date": "2025-12-15",
   "contract_amount": "42800000",
-  "data_note": "近邻混淆演示包；表式参考 GB50300 附录与公开空白样表；非真实档案。",
+  "data_note": "近邻混淆演示包；文种异构版式参考公开空白样表与 GB50300 附录；非真实档案。",
   "file_count": 18,
   "file_format": "pdf",
   "focus": [
@@ -23,6 +23,9 @@
   ],
   "form_reference": [
     "reference/public-pdfs/gb50300-2013-acceptance-standard.pdf",
-    "reference/public-pdfs/acceptance-check-forms-unified.pdf"
+    "reference/public-pdfs/acceptance-check-forms-unified.pdf",
+    "reference/public-pdfs/construction-permit-sample-sd.pdf",
+    "reference/public-pdfs/construction-contract-gf2017.pdf",
+    "reference/public-pdfs/unit-completion-acceptance-report.pdf"
   ]
 }

@@ -28,18 +28,28 @@ DEFAULT_RULES = (
 )
 
 FIELD_PATTERNS = [
-    ("项目名称", re.compile(r"项目名称[：:]\s*(.+)")),
+    # 真实样表常用「工程名称」；合成 PDF 同时保留「项目名称」
+    ("项目名称", re.compile(r"(?:项目名称|工程名称|建设项目名称)[：:]\s*(.+)")),
     ("项目编号", re.compile(r"项目编号[：:]\s*(.+)")),
     ("建设单位", re.compile(r"建设单位[：:]\s*(.+)")),
     ("施工单位", re.compile(r"施工单位[：:]\s*(.+)")),
     ("监理单位", re.compile(r"监理单位[：:]\s*(.+)")),
     ("设计单位", re.compile(r"设计单位[：:]\s*(.+)")),
-    ("工程地址", re.compile(r"工程地址[：:]\s*(.+)")),
+    ("工程地址", re.compile(r"(?:工程地址|建设地点|建设地址|工程地点|建设位置)[：:]\s*(.+)")),
     ("开工日期", re.compile(r"开工日期[：:]\s*(.+)")),
     ("竣工日期", re.compile(r"竣工日期[：:]\s*(.+)")),
-    ("合同金额", re.compile(r"合同金额[（(]?元[）)]?[：:]\s*([0-9.]+)")),
-    ("文件编号", re.compile(r"文件编号[：:]\s*(.+)")),
+    ("合同金额", re.compile(
+        r"(?:合同金额[（(]?元[）)]?|签约合同价|合同价格[（(]?元[）)]?)[：:]\s*([0-9.]+)"
+    )),
+    # 勿用裸「编号」：会误吃「项目编号：」。检验批等靠著录条「文件编号：」
+    ("文件编号", re.compile(r"(?:文件编号|合同编号|报告编号|证号|图册编号)[：:]\s*(.+)")),
 ]
+
+_NEXT_LABEL = re.compile(
+    r"(?:项目名称|工程名称|建设项目名称|项目编号|建设单位|施工单位|监理单位|设计单位|"
+    r"工程地址|建设地点|建设地址|工程地点|建设位置|开工日期|竣工日期|"
+    r"合同金额|签约合同价|合同价格|文件编号|合同编号|报告编号|证号|图册编号)\s*[：:]"
+)
 
 CATEGORY_KEYWORDS = [
     ("contract", ["施工合同", "监理合同", "承包合同", "委托监理"]),
@@ -69,14 +79,31 @@ def read_pdf_text(path: Path, max_pages: int = 2) -> str:
     return "\n".join(parts)
 
 
+def _clean_field_value(key: str, raw: str) -> str:
+    """截断同行多字段粘连（；或下一标签），兼容异构样表。"""
+    val = raw.strip().splitlines()[0].strip()
+    val = re.split(r"[；;|]", val, maxsplit=1)[0].strip()
+    m = _NEXT_LABEL.search(val)
+    if m and m.start() > 0:
+        val = val[: m.start()].strip()
+    if key == "合同金额":
+        val = re.sub(r"\s+", "", val)
+    if key in ("开工日期", "竣工日期"):
+        # 合同工期「2024-03-01 至 2025-11-20」只取日期段
+        m = re.match(r"(\d{4}[-./年]\d{1,2}[-./月]\d{1,2}日?)", val)
+        if m:
+            val = m.group(1).replace("年", "-").replace("月", "-").replace("日", "")
+            val = re.sub(r"[-./]+", "-", val)
+    return val
+
+
 def extract_fields(text: str) -> dict[str, str]:
     out: dict[str, str] = {}
     for key, pat in FIELD_PATTERNS:
         m = pat.search(text)
         if not m:
             continue
-        val = m.group(1).strip().splitlines()[0].strip()
-        val = re.sub(r"\s+", "", val) if key == "合同金额" else val
+        val = _clean_field_value(key, m.group(1))
         if val and not re.search(r"暂缺|待填写|示例|XXXX", val, re.I):
             out[key] = val
     return out
@@ -214,10 +241,25 @@ def build_findings(rules: dict, file_rows: list[dict], consensus: dict) -> list[
             formal = []
             similar = []
             for row in target_rows:
-                blob = row["filename"] + row.get("text_head", "")[:600]
-                if "预验收" in blob and ("竣工验收" in blob or "验收报告" in row["filename"] or "预验收" in row["filename"]):
+                fname = row["filename"]
+                # 去掉「版式参考…竣工验收报告」类脚注，避免 E-02 等竣工报告误命中
+                head = re.sub(
+                    r"[（(]?版式参考[^）)\n]{0,40}",
+                    "",
+                    row.get("text_head", "")[:600],
+                )
+                blob = fname + head
+                if "预验收" in blob and (
+                    "竣工验收" in blob
+                    or "验收报告" in fname
+                    or "预验收" in fname
+                ):
                     similar.append(row["rel_path"])
-                elif "竣工验收报告" in blob and "预验收" not in blob:
+                elif "预验收" not in blob and (
+                    "竣工验收报告" in fname
+                    or "竣工验收报告" in head
+                    or ("工程竣工验收" in fname and "报告" in fname)
+                ):
                     formal.append(row)
             if formal:
                 findings.append(
