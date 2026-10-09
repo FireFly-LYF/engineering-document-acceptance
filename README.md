@@ -1,5 +1,9 @@
 # 工程竣工资料核查
 
+## 版本更新
+
+后续每轮更新以独立提交追加到 `main`，更新内容见 [CHANGELOG](CHANGELOG.md)。可在 GitHub 查看 [main 提交历史](https://github.com/FireFly-LYF/engineering-document-acceptance/commits/main/) 和 [版本标记](https://github.com/FireFly-LYF/engineering-document-acceptance/tags)。
+
 通过给定参考 Markdown、可维护 tag/label 和条件规则，对工程档案包做资料类型、项目归属、文载一致性、重复版本和明确范围的核查，保存数据库证据链并导出 Word。
 
 仅处理本项目；Agnes key 从环境变量或本地 `.env` 读取。原始资料不修改，每次核查建立独立运行快照。
