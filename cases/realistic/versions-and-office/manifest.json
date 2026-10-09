@@ -1,0 +1,28 @@
+{
+  "project_id": "versions-and-office",
+  "project_name": "澄川实验学校教学楼改扩建工程（模拟）",
+  "project_code": "CC-SCHOOL-2025-016",
+  "owner": "澄川教育建设中心（虚构）",
+  "contractor": "澄川建筑有限公司（虚构）",
+  "supervisor": "清源监理有限公司（虚构）",
+  "designer": "清源设计院（虚构）",
+  "surveyor": "澄川勘察院（虚构）",
+  "address": "虚构市学苑路66号",
+  "contract_no": "SG-2025-016",
+  "contract_amount": "86500000",
+  "start_date": "2025-02-18",
+  "finish_date": "2026-08-20",
+  "project_type": "房屋建筑工程",
+  "audit_context": {
+    "audit_stage": "post_acceptance",
+    "use_type": "school",
+    "supervision_entrusted": true,
+    "fire_category": "special",
+    "fire_category_source": "测试人工确认条件，不由模型推断",
+    "fire_spotcheck_selected": false,
+    "coverage_plan_confirmed": false,
+    "regulatory_scope": "general_civil",
+    "fire_regulation_applicable": true
+  },
+  "data_note": "全部项目单位和文件均为虚构模拟；真实像素扫描页无文本层"
+}

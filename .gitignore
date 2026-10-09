@@ -16,3 +16,18 @@ Thumbs.db
 *.tmp
 _verify_utf8.txt
 FILE_LIST.txt
+
+# Credentials and reproducible local run artifacts
+.env
+.env.local
+node_modules/
+.pytest_cache/
+cases/**/_work/
+tmp/
+.env.*
+!.env.example
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+cases/realistic/**/files/
+/生成结果/

@@ -1,0 +1,16 @@
+{
+  "python_tests": 49,
+  "word_guard_tests": "passed",
+  "regression_cases": 5,
+  "regression_passed": true,
+  "live_agnes_verified": [
+    "OCR true raster pages",
+    "mixed PDF pages",
+    "field candidates",
+    "statement drafting"
+  ],
+  "mysql_live_verified": false,
+  "word_visual_qa_pages": 2,
+  "sample_run_id": "run_f1244582272446599596da86",
+  "sample_docx_sha256": "7e61a783d379b101e8f907b74daab64f62ab6e470b70c1e9a5b66be8574d8a95"
+}
