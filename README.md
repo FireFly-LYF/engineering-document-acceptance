@@ -6,14 +6,16 @@
 
 > 演示数据均为**合成材料**，规则参考政府部门公开的归档目录与验收空白表结构，**不含真实工程档案与个人隐私**。
 
-完整「证据库 / 流水线 / Agnes API」系统实现已存档在分支 [`system`](https://github.com/FireFly-LYF/engineering-document-acceptance/tree/system)（对应 v1.0.x）。**`main` 仅保留 Skill + 脚本**，供 Agnes 在 AGH 会话中阅读并完成规则匹配与文书生成。
+完整「证据库 / 流水线 / Agnes API」系统实现已存档在分支 `[system](https://github.com/FireFly-LYF/engineering-document-acceptance/tree/system)`（对应 v1.0.x）。`**main` 仅保留 Skill + 脚本**，供 Agnes 在 AGH 会话中阅读并完成规则匹配与文书生成。
 
 ## 功能概览
 
-| 能力 | Skill | 说明 |
-|------|--------|------|
-| 齐套与一致性核查 | `engineering-archive-audit` | 清单匹配、字段抽取初稿、缺失/错传/冲突/重复判定 |
+
+| 能力       | Skill                       | 说明                                         |
+| -------- | --------------------------- | ------------------------------------------ |
+| 齐套与一致性核查 | `engineering-archive-audit` | 清单匹配、字段抽取初稿、缺失/错传/冲突/重复判定                  |
 | 情况说明文书生成 | `engineering-doc-generator` | `prepare` → Agent 写正文 → `build` 导出 `.docx` |
+
 
 不使用 Workflow 编排；不依赖第三方业务模型 API。AGH 会话中应使用 **Agnes** 模型阅读本仓库 Skills。
 
@@ -39,6 +41,8 @@ python tools/generate_near_miss_case.py
 python tools/fetch_public_pdfs.py
 ```
 
+合成 PDF 版式仿公开空白表/国标附录（见 `reference/public-pdfs/` 与 `tools/pdf_forms.py`）：检验批/分项/分部/观感对齐 GB50300-2013 附录 E–H；许可、合同、报告类用双框封面+著录表+签章栏。内容仍为合成填写，**不是**真实工程档案扫描件。
+
 ## 环境要求
 
 - [Agnes Harness](https://agnes-ai.cn/) 可运行（Web / CLI）
@@ -54,8 +58,8 @@ cd .agh/skills/engineering-doc-generator && npm install
 
 1. 启动 AGH，将本仓库根目录添加为工作区。
 2. Skills 管理中刷新并启用：
-   - `engineering-archive-audit`
-   - `engineering-doc-generator`
+  - `engineering-archive-audit`
+  - `engineering-doc-generator`
 3. 新建会话，可用如下任务描述：
 
 ```text
@@ -116,11 +120,13 @@ node scripts/generate.js build --case ../../../cases/demo-housing-mixed --out ..
 
 ## 开发辅助脚本（`tools/`）
 
-| 脚本 | 用途 |
-|------|------|
-| `generate_demo_case.py` | 重新生成 `demo-housing-mixed` |
-| `generate_near_miss_case.py` | 重新生成 `demo-housing-near-miss` |
-| `fetch_public_pdfs.py` | 拉取公开归档指南/目录类 PDF 到 `reference/` |
+
+| 脚本                           | 用途                              |
+| ---------------------------- | ------------------------------- |
+| `generate_demo_case.py`      | 重新生成 `demo-housing-mixed`       |
+| `generate_near_miss_case.py` | 重新生成 `demo-housing-near-miss`   |
+| `fetch_public_pdfs.py`       | 拉取公开归档指南/目录类 PDF 到 `reference/` |
+
 
 ## 说明与边界
 

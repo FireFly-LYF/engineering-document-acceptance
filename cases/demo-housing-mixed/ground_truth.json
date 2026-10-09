@@ -16,7 +16,8 @@
       "B-02",
       "G-02"
     ],
-    "scan_style_pdfs_note": "说明性字段，不作为齐套成败标准"
+    "scan_style_pdfs_note": "说明性字段，不作为齐套成败标准",
+    "form_style_note": "验收类表式仿 GB50300 附录；仍为合成数据"
   },
   "expected_highlights": {
     "missing_required": [

@@ -12,7 +12,11 @@
   "start_date": "2024-03-01",
   "finish_date": "2025-11-20",
   "contract_amount": "86500000",
-  "data_note": "全部为合成演示 PDF，表头参考公开归档目录与验收空白表结构；非真实工程档案。",
+  "data_note": "合成演示 PDF；检验批/分项/分部/观感表式参考 GB50300-2013 附录；非真实工程档案。",
   "file_count": 24,
-  "file_format": "pdf"
+  "file_format": "pdf",
+  "form_reference": [
+    "reference/public-pdfs/gb50300-2013-acceptance-standard.pdf",
+    "reference/public-pdfs/acceptance-check-forms-unified.pdf"
+  ]
 }

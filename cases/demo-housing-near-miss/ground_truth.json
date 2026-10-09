@@ -3,7 +3,7 @@
   "rules_profile": "housing-construction",
   "scoring_notes": {
     "contrast_with": "demo-housing-mixed",
-    "difference": "本包侧重近邻工程名/编号混淆，而非市政管廊远域错传；另测开工日期冲突、缺材料检测、不可读扫描",
+    "difference": "本包侧重近邻工程名/编号混淆；另测开工日期冲突、缺材料检测、不可读扫描",
     "misfiled_excluded_from_presence": "他项文件不得计入本项目齐套 provided；小学正式验收不得计为本项目 E-01",
     "field_conflicts_in_project_only": "仅统计本工程真冲突；他项级联不得计为多条 FIELD",
     "expected_field_conflict_count": 1,
@@ -11,7 +11,8 @@
       "B-02",
       "G-02"
     ],
-    "no_duplicate_file_no_test": "本包不测同编号重复（见 demo-housing-mixed）"
+    "no_duplicate_file_no_test": "本包不测同编号重复（见 demo-housing-mixed）",
+    "form_style_note": "验收类表式仿 GB50300 附录；仍为合成数据"
   },
   "expected_highlights": {
     "missing_required": [

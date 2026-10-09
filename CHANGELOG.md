@@ -2,6 +2,12 @@
 
 每轮更新以独立提交追加到 `main`。已发布提交保留，版本 tag 指向对应快照。
 
+## v1.1.2 2026-10-09
+
+- 合成 PDF 改用仿 GB50300 附录与公开空白表版式（`tools/pdf_forms.py`）：检验批/分项/分部/观感表格化，报告类双框封面+著录+签章。
+- 对照参考：`reference/public-pdfs/gb50300-2013-acceptance-standard.pdf`、`acceptance-check-forms-unified.pdf` 等；内容仍为合成，非真实档案。
+- 重生成 `demo-housing-mixed` 与 `demo-housing-near-miss`；核查结论与既有评分约定保持一致。
+
 ## v1.1.1 2026-10-09
 
 - 核查脚本：错传不参与字段共识；FIELD 仅保留本工程真冲突；简报/报告去路径与双重粘贴。

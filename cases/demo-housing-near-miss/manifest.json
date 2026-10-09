@@ -12,7 +12,7 @@
   "start_date": "2024-05-08",
   "finish_date": "2025-12-15",
   "contract_amount": "42800000",
-  "data_note": "近邻混淆演示包：同校区/同学府路他项混入正常目录；缺 D-01/E-01/G-01；本工程开工日期冲突；含不可读扫描页。",
+  "data_note": "近邻混淆演示包；表式参考 GB50300 附录与公开空白样表；非真实档案。",
   "file_count": 18,
   "file_format": "pdf",
   "focus": [
@@ -20,5 +20,9 @@
     "start_date_conflict",
     "missing_material_test",
     "unreadable_scan"
+  ],
+  "form_reference": [
+    "reference/public-pdfs/gb50300-2013-acceptance-standard.pdf",
+    "reference/public-pdfs/acceptance-check-forms-unified.pdf"
   ]
 }
