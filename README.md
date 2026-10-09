@@ -121,11 +121,12 @@ node scripts/generate.js build --case ../../../cases/demo-housing-mixed --out ..
 ## 开发辅助脚本（`tools/`）
 
 
-| 脚本                           | 用途                              |
-| ---------------------------- | ------------------------------- |
-| `generate_demo_case.py`      | 重新生成 `demo-housing-mixed`       |
-| `generate_near_miss_case.py` | 重新生成 `demo-housing-near-miss`   |
-| `fetch_public_pdfs.py`       | 拉取公开归档指南/目录类 PDF 到 `reference/` |
+| 脚本 | 用途 |
+|------|------|
+| `pdf_forms.py` | GB50300 风格表样与报告封面绘制 |
+| `generate_demo_case.py` | 重新生成 `demo-housing-mixed` |
+| `generate_near_miss_case.py` | 重新生成 `demo-housing-near-miss` |
+| `fetch_public_pdfs.py` | 拉取公开归档指南/目录类 PDF 到 `reference/` |
 
 
 ## 说明与边界
