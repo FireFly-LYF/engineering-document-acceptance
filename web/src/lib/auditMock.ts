@@ -122,7 +122,7 @@ function buildFolderMarks(files: ProjectFile[]): FolderMark[] {
       summary = `${rev} 份需人工确认`
     } else if (ok > 0 && ok + (counts.unscanned || 0) === list.length) {
       tone = 'ok'
-      label = '基本齐套'
+      label = '基本材料齐全'
       summary = `已对齐清单 ${ok} 份`
     }
 

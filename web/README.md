@@ -1,33 +1,33 @@
-# 竣工资料核查台（前端）
+# 工程文件核验（前端）
 
-本地 Web 工作台：按**用户 → 工程批次**管理上传材料，支持 ZIP / PDF / 本地文件夹，核查后对照 `_work/findings` 形态为文件与目录打标。
+本地 Web 工作台：按**用户 → 工程批次**管理上传材料。上传经 API 落盘到 `cases/<id>/files/`；核查按钮整段交给本机 AGH Agent，并可跳转 AGH 网页查看过程。
 
-> 当前为**大框架**：核查为前端启发式演示，尚未调用 `audit_prepare.py`。数据存在浏览器 `localStorage`。
-
-## 启动
+## 启动（三端）
 
 ```bash
-cd web
-npm install
-npm run dev
+# 1) API（8787）
+cd ../server && npm install && npm run dev
+
+# 2) 前端（5173，/api 代理到 8787）
+cd ../web && npm install && npm run dev
+
+# 3) AGH Web（4177）
+cd ../../agnes-harness
+# 需已 build:local
+node .\packages\cli\dist\local\agnes.mjs serve
 ```
 
-浏览器打开终端提示的本地地址（默认 `http://localhost:5173`）。
+浏览器打开 `http://localhost:5173`。
 
 ## 结构
 
 ```text
 src/
-├── App.tsx                 # 用户 / 项目壳层
-├── types.ts                # 项目、文件、标注类型
-├── store.ts                # localStorage 持久化
-├── lib/files.ts            # ZIP / PDF / 文件夹摄入
-├── lib/auditMock.ts        # 演示核查 + findings 打标
-└── components/             # 上传、目录树、结果面板
+├── App.tsx                 # 用户 / 项目壳层；对接 API + AGH
+├── types.ts
+├── store.ts                # UI 状态 localStorage；文件本体在磁盘
+├── lib/api.ts              # 落盘 / 核查 API
+├── lib/files.ts            # 路径工具
+├── lib/auditMock.ts        # annotateFromFindings（读真实 findings）
+└── components/
 ```
-
-## 后续对接（未做）
-
-- 后端接收上传 → 写入 `cases/<id>/files/`
-- 调用 `audit_prepare.py` 生成真实 `_work/`
-- 前端拉取 findings 替换 `runMockAudit`

@@ -6,7 +6,7 @@
       "demo-housing-mixed",
       "demo-housing-near-miss"
     ],
-    "difference": "本包为全量齐套、字段一致的正确对照；不应出现缺失/错传/冲突/重复/不可读",
+    "difference": "本包为全量材料齐全、字段一致的正确对照；不应出现缺失/错传/冲突/重复/不可读",
     "expected_field_conflict_count": 0,
     "expected_missing_required_count": 0,
     "optional_codes_included": [
@@ -45,6 +45,6 @@
     "加载 housing-construction 规则",
     "全部 required 文档 status=provided（含 E-01 正式竣工验收、G-01 消防验收）",
     "无 FIELD / MISFILE / DUP / UNREADABLE / missing(error)",
-    "可选：再跑 engineering-doc-generator，情况说明结论为资料齐套、无明显一致性问题"
+    "可选：再跑 engineering-doc-generator，情况说明结论为资料材料齐全、无明显一致性问题"
   ]
 }

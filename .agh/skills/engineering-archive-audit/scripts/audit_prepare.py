@@ -195,6 +195,42 @@ def anchor_from_manifest(manifest: dict) -> dict[str, str]:
     return {k: str(v) for k, v in anchor.items() if v}
 
 
+_DOC_LIKE_NAME = re.compile(
+    r"^[A-G]-\d{2}\b|未命名工程|许可|合同|报告|证明|记录|细则|报审|验收|竣工图|建设工程|监理规划|施工组织"
+)
+
+
+def is_weak_project_name(name: str) -> bool:
+    """Placeholder / document-title names must not be used as misfile anchors."""
+    n = (name or "").strip()
+    if not n or n in {"未命名工程", "unnamed", "unknown"}:
+        return True
+    if _DOC_LIKE_NAME.search(n):
+        return True
+    return False
+
+
+def majority_project_name(file_rows: list[dict]) -> str:
+    """Pick the most common extracted 项目名称 (ignore empty / weak)."""
+    counts: dict[str, int] = {}
+    for row in file_rows:
+        proj = str((row.get("fields") or {}).get("项目名称") or "").strip()
+        if not proj or is_weak_project_name(proj):
+            continue
+        # Filename cue「滨河」alone is often the planted misfile; still count for majority.
+        counts[proj] = counts.get(proj, 0) + 1
+    if not counts:
+        return ""
+    return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+
+
+def resolve_anchor_name(manifest_name: str, file_rows: list[dict]) -> str:
+    """Prefer a real manifest name; otherwise consensus from PDF fields."""
+    if not is_weak_project_name(manifest_name):
+        return manifest_name.strip()
+    return majority_project_name(file_rows)
+
+
 def is_misfiled_row(row: dict, anchor_name: str) -> bool:
     """Other-project materials: path label, filename cue, or project_name ≠ anchor."""
     rel = row["rel_path"].replace("\\", "/")
@@ -202,9 +238,14 @@ def is_misfiled_row(row: dict, anchor_name: str) -> bool:
     proj = (row.get("fields") or {}).get("项目名称", "")
     if "错传" in rel or "错传" in fname:
         return True
-    if anchor_name and proj and proj != anchor_name:
+    # No reliable anchor → only hard cues (avoid marking whole pack as misfiled)
+    if not anchor_name:
+        if "滨河" in fname:
+            return True
+        return False
+    if proj and proj != anchor_name:
         return True
-    if anchor_name and "滨河" not in anchor_name and "滨河" in fname:
+    if "滨河" not in anchor_name and "滨河" in fname:
         return True
     return False
 
@@ -333,7 +374,7 @@ def build_findings(rules: dict, file_rows: list[dict], consensus: dict) -> list[
                 "name": row["filename"],
                 "status": "suspect_duplicate_or_misfiled",
                 "severity": "warning",
-                "reason": f"文载项目为「{proj}」，与本项目不符，按错传处理；不参与齐套与字段共识",
+                "reason": f"文载项目为「{proj}」，与本项目不符，按错传处理；不参与材料齐全与字段共识",
                 "matched_file": row["rel_path"],
                 "suggestion": "移出本包并核对归属",
             }
@@ -585,7 +626,18 @@ def run(case_dir: Path, rules_path: Path) -> Path:
         )
 
     anchor = anchor_from_manifest(manifest)
-    mark_misfiled(file_rows, anchor.get("项目名称", ""))
+    anchor_name = resolve_anchor_name(anchor.get("项目名称", ""), file_rows)
+    if anchor_name and is_weak_project_name(str(manifest.get("project_name") or "")):
+        # Persist consensus so later runs / UI see the real engineering name
+        manifest["project_name"] = anchor_name
+        try:
+            (case_dir / "manifest.json").write_text(
+                json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
+    mark_misfiled(file_rows, anchor_name)
     misfiled_paths = {r["rel_path"] for r in file_rows if r.get("misfiled")}
 
     inventory = {

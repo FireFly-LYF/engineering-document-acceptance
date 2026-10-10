@@ -1,4 +1,4 @@
-请使用 engineering-archive-audit 对 cases/demo-housing-mixed 做竣工资料齐套与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。
+请使用 engineering-archive-audit 对 cases/demo-housing-mixed 做竣工资料材料齐全与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。
 
 核查完成后，使用 engineering-doc-generator 生成《竣工资料核查情况说明》并导出 Word。
 

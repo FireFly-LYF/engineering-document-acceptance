@@ -59,8 +59,16 @@ export interface Project {
   updatedAt: string
   auditStatus: ProjectAuditStatus
   files: ProjectFile[]
+  /** 用户新建的空目录（尚无文件时仍展示） */
+  extraFolders?: string[]
   folderMarks: FolderMark[]
   summary?: AuditSummary
+  /** AGH 会话深链 */
+  aghUrl?: string
+  aghSessionId?: string
+  aghMessage?: string
+  /** 本机 AGH -p 进程，用于打断 */
+  aghPid?: number
 }
 
 export interface UserProfile {

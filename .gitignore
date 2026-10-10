@@ -6,7 +6,12 @@ package-lock.json
 # frontend build
 web/dist/
 
-# runtime / generated work products (keep source case metadata)
+# runtime case archives: keep only the three demo packages
+cases/*
+!cases/demo-housing-complete/
+!cases/demo-housing-mixed/
+!cases/demo-housing-near-miss/
+# still ignore generated work products inside demos
 cases/**/_work/
 生成结果/
 **/生成结果/
@@ -32,5 +37,6 @@ Thumbs.db
 # logs / temp
 *.log
 *.tmp
+.dev-logs/
 _verify_utf8.txt
 FILE_LIST.txt

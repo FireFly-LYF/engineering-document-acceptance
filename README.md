@@ -2,7 +2,7 @@
 
 基于 **Agnes Harness（AGH）+ Skill** 的房屋建筑工程竣工资料智能核查与情况说明生成演示项目。
 
-面向「建设工程竣工资料完整性与一致性核查」：对照可配置归档清单做齐套/错传/冲突/重复判定，并生成正式《核查情况说明》Word。确定性步骤由本地脚本完成，Agent 阅读 Skill 与简报做抽查、润色与执笔。
+面向「建设工程竣工资料完整性与一致性核查」：对照可配置归档清单做材料齐全/错传/冲突/重复判定，并生成正式《核查情况说明》Word。确定性步骤由本地脚本完成，Agent 阅读 Skill 与简报做抽查、润色与执笔。
 
 > 演示数据均为**合成材料**，规则参考政府部门公开的归档目录与验收空白表结构，**不含真实工程档案与个人隐私**。
 
@@ -13,7 +13,7 @@
 
 | 能力       | Skill                       | 说明                                         |
 | -------- | --------------------------- | ------------------------------------------ |
-| 齐套与一致性核查 | `engineering-archive-audit` | 清单匹配、字段抽取初稿、缺失/错传/冲突/重复判定                  |
+| 材料齐全与一致性核查 | `engineering-archive-audit` | 清单匹配、字段抽取初稿、缺失/错传/冲突/重复判定                  |
 | 情况说明文书生成 | `engineering-doc-generator` | `prepare` → Agent 写正文 → `build` 导出 `.docx` |
 
 
@@ -29,7 +29,7 @@ engineering-document-acceptance/
 ├── web/                               # 前端核查台（用户→工程批次、上传与打标框架）
 ├── cases/demo-housing-mixed/          # 缺陷包：远域错传 / 编号金额冲突 / 重复件
 ├── cases/demo-housing-near-miss/      # 缺陷包：近邻混淆 / 开工日期冲突 / 缺检测 / 不可读页
-├── cases/demo-housing-complete/       # 正确包：全量齐套、字段一致、无缺陷
+├── cases/demo-housing-complete/       # 正确包：全量材料齐全、字段一致、无缺陷
 ├── reference/public-pdfs/             # 公开目录索引与少量已入库参考 PDF
 ├── tools/                             # 造数与拉取公开 PDF 的开发脚本
 └── README.md
@@ -88,7 +88,7 @@ cd .agh/skills/engineering-doc-generator && npm install
 3. 新建会话，可用如下任务描述：
 
 ```text
-请使用 engineering-archive-audit 对 cases/demo-housing-mixed 做竣工资料齐套与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。
+请使用 engineering-archive-audit 对 cases/demo-housing-mixed 做竣工资料材料齐全与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。
 
 核查完成后，使用 engineering-doc-generator 生成《竣工资料核查情况说明》并导出 Word。
 

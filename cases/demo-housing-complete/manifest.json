@@ -12,7 +12,7 @@
   "start_date": "2024-04-15",
   "finish_date": "2025-10-30",
   "contract_amount": "128600000",
-  "data_note": "完全正确对照包：齐套全部必需项（含正式竣工验收与消防验收），字段与 manifest 一致，无错传/冲突/重复/不可读页。",
+  "data_note": "完全正确对照包：材料齐全全部必需项（含正式竣工验收与消防验收），字段与 manifest 一致，无错传/冲突/重复/不可读页。",
   "file_count": 22,
   "file_format": "pdf",
   "form_reference": [

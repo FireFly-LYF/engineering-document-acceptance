@@ -2,7 +2,7 @@
   "project_id": "demo-housing-mixed",
   "rules_profile": "housing-construction",
   "scoring_notes": {
-    "misfiled_excluded_from_presence": "错传/他项文件不得计入本项目齐套 provided",
+    "misfiled_excluded_from_presence": "错传/他项文件不得计入本项目材料齐全 provided",
     "field_conflicts_in_project_only": "仅统计本工程真冲突（相对 manifest 锚值）；错传级联不得计为多条 FIELD",
     "expected_field_conflict_count": 2,
     "out_of_scope_files": [
@@ -16,7 +16,7 @@
       "B-02",
       "G-02"
     ],
-    "scan_style_pdfs_note": "说明性字段，不作为齐套成败标准",
+    "scan_style_pdfs_note": "说明性字段，不作为材料齐全成败标准",
     "form_style_note": "文种异构：许可证/合同/技术文件/检测报告/竣工验收封面/竣工图目录/GB50300附录；仍为合成数据"
   },
   "expected_highlights": {

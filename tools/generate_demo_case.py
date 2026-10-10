@@ -384,7 +384,7 @@ def main() -> None:
         "project_id": CASE_ID,
         "rules_profile": "housing-construction",
         "scoring_notes": {
-            "misfiled_excluded_from_presence": "错传/他项文件不得计入本项目齐套 provided",
+            "misfiled_excluded_from_presence": "错传/他项文件不得计入本项目材料齐全 provided",
             "field_conflicts_in_project_only": "仅统计本工程真冲突（相对 manifest 锚值）；错传级联不得计为多条 FIELD",
             "expected_field_conflict_count": 2,
             "out_of_scope_files": [
@@ -395,7 +395,7 @@ def main() -> None:
                 }
             ],
             "optional_codes": ["B-02", "G-02"],
-            "scan_style_pdfs_note": "说明性字段，不作为齐套成败标准",
+            "scan_style_pdfs_note": "说明性字段，不作为材料齐全成败标准",
             "form_style_note": (
                 "文种异构：许可证/合同/技术文件/检测报告/竣工验收封面/竣工图目录/GB50300附录；"
                 "仍为合成数据"
@@ -464,7 +464,7 @@ def main() -> None:
     (CASE / "ground_truth.json").write_text(
         json.dumps(ground_truth, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    prompt = f"""请使用 engineering-archive-audit 对 cases/{CASE_ID} 做竣工资料齐套与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。
+    prompt = f"""请使用 engineering-archive-audit 对 cases/{CASE_ID} 做竣工资料材料齐全与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。
 
 核查完成后，使用 engineering-doc-generator 生成《竣工资料核查情况说明》并导出 Word。
 

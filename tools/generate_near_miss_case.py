@@ -294,7 +294,7 @@ def main() -> None:
         "scoring_notes": {
             "contrast_with": "demo-housing-mixed",
             "difference": "本包侧重近邻工程名/编号混淆；另测开工日期冲突、缺材料检测、不可读扫描",
-            "misfiled_excluded_from_presence": "他项文件不得计入本项目齐套 provided；小学正式验收不得计为本项目 E-01",
+            "misfiled_excluded_from_presence": "他项文件不得计入本项目材料齐全 provided；小学正式验收不得计为本项目 E-01",
             "field_conflicts_in_project_only": "仅统计本工程真冲突；他项级联不得计为多条 FIELD",
             "expected_field_conflict_count": 1,
             "optional_codes": ["B-02", "G-02"],
@@ -354,12 +354,12 @@ def main() -> None:
     (CASE / "ground_truth.json").write_text(
         json.dumps(ground_truth, ensure_ascii=False, indent=2), encoding="utf-8"
     )
-    prompt = f"""请使用 engineering-archive-audit 对 cases/{CASE_ID} 做竣工资料齐套与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。
+    prompt = f"""请使用 engineering-archive-audit 对 cases/{CASE_ID} 做竣工资料材料齐全与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。
 
 本包重点：近邻工程混淆（同校区教学楼、同学府路小学）、缺材料检测、预验收不可替代正式验收、本工程开工日期冲突、不可读扫描页。
 
 核查完成后，使用 engineering-doc-generator 生成《竣工资料核查情况说明》并导出 Word。
-文书勿把近邻他项写成「本工程已提供正式竣工验收报告」；不可读页保留读取不足，不判为已齐套。
+文书勿把近邻他项写成「本工程已提供正式竣工验收报告」；不可读页保留读取不足，不判为已材料齐全。
 """
     (CASE / "TEST_PROMPT.txt").write_text(prompt.strip() + "\n", encoding="utf-8")
     print(f"Generated {CASE}")

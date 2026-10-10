@@ -325,7 +325,7 @@ def main() -> None:
             )
         },
         "data_note": (
-            "完全正确对照包：齐套全部必需项（含正式竣工验收与消防验收），"
+            "完全正确对照包：材料齐全全部必需项（含正式竣工验收与消防验收），"
             "字段与 manifest 一致，无错传/冲突/重复/不可读页。"
         ),
         "file_count": len(pdfs),
@@ -347,7 +347,7 @@ def main() -> None:
         "rules_profile": "housing-construction",
         "scoring_notes": {
             "contrast_with": ["demo-housing-mixed", "demo-housing-near-miss"],
-            "difference": "本包为全量齐套、字段一致的正确对照；不应出现缺失/错传/冲突/重复/不可读",
+            "difference": "本包为全量材料齐全、字段一致的正确对照；不应出现缺失/错传/冲突/重复/不可读",
             "expected_field_conflict_count": 0,
             "expected_missing_required_count": 0,
             "optional_codes_included": ["B-02", "G-02"],
@@ -383,19 +383,19 @@ def main() -> None:
             "加载 housing-construction 规则",
             "全部 required 文档 status=provided（含 E-01 正式竣工验收、G-01 消防验收）",
             "无 FIELD / MISFILE / DUP / UNREADABLE / missing(error)",
-            "可选：再跑 engineering-doc-generator，情况说明结论为资料齐套、无明显一致性问题",
+            "可选：再跑 engineering-doc-generator，情况说明结论为资料材料齐全、无明显一致性问题",
         ],
     }
     (CASE / "ground_truth.json").write_text(
         json.dumps(ground_truth, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    prompt = f"""请使用 engineering-archive-audit 对 cases/{CASE_ID} 做竣工资料齐套与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。
+    prompt = f"""请使用 engineering-archive-audit 对 cases/{CASE_ID} 做竣工资料材料齐全与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。
 
 本包为完全正确对照包：预期全部必需资料已提供，字段一致，无错传、冲突、重复与不可读页。
 
 核查完成后，使用 engineering-doc-generator 生成《竣工资料核查情况说明》并导出 Word。
-文书结论应反映资料齐套、无明显一致性问题；勿编造缺失或冲突。
+文书结论应反映资料材料齐全、无明显一致性问题；勿编造缺失或冲突。
 """
     (CASE / "TEST_PROMPT.txt").write_text(prompt.strip() + "\n", encoding="utf-8")
     print(f"Generated {CASE}")

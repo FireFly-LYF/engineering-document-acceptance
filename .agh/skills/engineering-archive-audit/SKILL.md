@@ -6,7 +6,7 @@ description: >-
   consistency against a configurable archive checklist (房屋建筑 / 道路桥梁 /
   市政管线). Classifies files, extracts key fields, flags missing / duplicate /
   mismatched / conflicting items with evidence. Use when the user says 竣工资料核查,
-  档案完整性检查, 齐套核验, 归档目录比对, engineering-archive-audit, or asks to
+  档案完整性检查, 材料齐全核验, 归档目录比对, engineering-archive-audit, or asks to
   check a 建设工程竣工资料包.
 
 # 建设工程竣工资料 · 完整性与一致性核查
@@ -18,7 +18,7 @@ description: >-
 
 ## 何时启用
 
-用户指定项目包并要求：竣工资料/档案齐套核查、缺件检查、跨文件一致性、错传/重复/冲突判定。
+用户指定项目包并要求：竣工资料/档案材料齐全核查、缺件检查、跨文件一致性、错传/重复/冲突判定。
 
 若还要正式「情况说明」Word：核查完成后点名 `**engineering-doc-generator`**（文书生成 Skill）。
 
@@ -89,7 +89,7 @@ python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cas
 ```
 
 脚本会写入：`inventory.json`、`classification.json`、`fields.json`、`field_consensus.json`、`findings.json`、`audit-report.md`、`audit-brief.md`。  
-错传/他项文件不参与齐套命中与字段共识；本工程 FIELD 仅保留相对 manifest 锚值的真冲突。  
+错传/他项文件不参与材料齐全命中与字段共识；本工程 FIELD 仅保留相对 manifest 锚值的真冲突。  
 空文本/损坏扫描标 `UNREADABLE`（`needs_human_review`），不能据此认定已提供。  
 演示对照：`demo-housing-mixed`（远域错传/编号金额/重复）、`demo-housing-near-miss`（近邻混淆/开工日期/缺检测/不可读）。  
 **禁止**让 Agent 重新枚举全部文件或对每份 PDF 做完整阅读来「重做」上述产物。

@@ -188,8 +188,8 @@ function buildOutline(facts) {
       : '四、主要问题及证据说明（本次无缺失/错传/重复/本工程冲突时，写明经核对未发现上述问题，勿编造缺项）',
     '五、处理意见与建议（补齐缺项、更正错传/冲突、退回重报、指定人工复核；有期限事实才写期限）',
     hasGap
-      ? '六、核查结论（概括齐套与一致性总体判断；有缺失不得写全部齐套合格；预验收不能替代正式竣工验收报告）'
-      : '六、核查结论（资料按清单齐套、关键字段未见冲突；结论与 findings 同向，勿夸大）',
+      ? '六、核查结论（概括材料齐全与一致性总体判断；有缺失不得写全部材料齐全合格；预验收不能替代正式竣工验收报告）'
+      : '六、核查结论（资料按清单材料齐全、关键字段未见冲突；结论与 findings 同向，勿夸大）',
     '落款：「特此说明！」+ 日期（用 facts.current_date）',
   ];
 }
@@ -214,7 +214,7 @@ function writeAgentBrief(bundle, facts, evidence, outline) {
   lines.push('## 任务');
   lines.push(
     '撰写《房屋建筑工程竣工资料完整性与一致性核查情况说明》正文。' +
-      '口吻为工程资料核查说明（对照归档清单做齐套与一致性核查），证据驱动，禁止占位符填空与编造。'
+      '口吻为工程资料核查说明（对照归档清单做材料齐全与一致性核查），证据驱动，禁止占位符填空与编造。'
   );
   lines.push('');
   lines.push('## 工程要点（仅列已有值）');
@@ -235,7 +235,7 @@ function writeAgentBrief(bundle, facts, evidence, outline) {
   lines.push('## 须写入正文的重要问题（勿增删结论方向）');
   lines.push('分层：缺失 → 错传（他项工程）→ 重复 → 本工程字段冲突。勿把错传引起的级联差异写成多条本工程冲突。');
   if (!facts.important_findings.length) {
-    lines.push('- （无缺失/错传/重复/本工程冲突；结论写资料齐套、未见明显一致性问题，勿夸大）');
+    lines.push('- （无缺失/错传/重复/本工程冲突；结论写资料材料齐全、未见明显一致性问题，勿夸大）');
   } else {
     for (const it of facts.important_findings) {
       const tip = [];
@@ -267,7 +267,7 @@ function writeAgentBrief(bundle, facts, evidence, outline) {
   lines.push('');
   lines.push('## 硬约束');
   lines.push('- 只写工程资料核查用语；不写磁盘路径；附件行只写短文件名/资料标准名');
-  lines.push('- 有缺失不得写「全部齐套合格」');
+  lines.push('- 有缺失不得写「全部材料齐全合格」');
   lines.push('- 预验收默认不能替代正式《工程竣工验收报告》');
   lines.push('- 错传单独成段；本工程真冲突写清取值与短文件名');
   lines.push('- 写完后执行: node scripts/generate.js build --case <caseDir>');
