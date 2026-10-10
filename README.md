@@ -26,11 +26,19 @@ engineering-document-acceptance/
 ├── .agh/skills/
 │   ├── engineering-archive-audit/     # 核查 Skill + rules + audit_prepare.py
 │   └── engineering-doc-generator/     # 文书 Skill + generate.js（prepare/build）
-├── cases/demo-housing-mixed/          # 基础演示：远域错传 / 编号金额冲突 / 重复件
-├── cases/demo-housing-near-miss/      # 对照包：近邻混淆 / 开工日期冲突 / 缺检测 / 不可读页
+├── web/                               # 前端核查台（用户→工程批次、上传与打标框架）
+├── cases/demo-housing-mixed/          # 缺陷包：远域错传 / 编号金额冲突 / 重复件
+├── cases/demo-housing-near-miss/      # 缺陷包：近邻混淆 / 开工日期冲突 / 缺检测 / 不可读页
+├── cases/demo-housing-complete/       # 正确包：全量齐套、字段一致、无缺陷
 ├── reference/public-pdfs/             # 公开目录索引与少量已入库参考 PDF
 ├── tools/                             # 造数与拉取公开 PDF 的开发脚本
 └── README.md
+```
+
+前端工作台（框架）：
+
+```bash
+cd web && npm install && npm run dev
 ```
 
 演示包 PDF 若缺失，在本地生成：
@@ -38,6 +46,7 @@ engineering-document-acceptance/
 ```bash
 python tools/generate_demo_case.py
 python tools/generate_near_miss_case.py
+python tools/generate_complete_case.py
 python tools/fetch_public_pdfs.py
 ```
 
@@ -53,6 +62,7 @@ python tools/fetch_public_pdfs.py
 | 材料检测 | 实验室结果表 | `make_material_test_report` |
 | 竣工/预验收报告 | GD-E1 封面+工程概况 | `make_completion_pack` |
 | 竣工图说明 | 图纸目录表 | `make_asbuilt_drawing_note` |
+| 消防验收意见 | 机关抬头意见书 | `make_fire_acceptance_opinion` |
 | 规划核实 | 绿色证头 | `make_planning_verify_cert` |
 | 检验批/分项/分部/观感 | GB50300-2013 附录 E–H | `make_inspection_batch` 等 |
 
@@ -85,7 +95,7 @@ cd .agh/skills/engineering-doc-generator && npm install
 结论需覆盖：缺失项、错传、字段冲突、重复件。
 ```
 
-也可直接复制 `cases/demo-housing-mixed/TEST_PROMPT.txt` 或 `cases/demo-housing-near-miss/TEST_PROMPT.txt`。
+也可直接复制各 case 下 `TEST_PROMPT.txt`（含 `demo-housing-complete` 正确包）。
 
 ### 脚本优先（Skill 内约定）
 
@@ -94,6 +104,7 @@ cd .agh/skills/engineering-doc-generator && npm install
 ```bash
 python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/demo-housing-mixed
 python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/demo-housing-near-miss
+python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/demo-housing-complete
 ```
 
 文书：
@@ -127,6 +138,17 @@ node scripts/generate.js build --case ../../../cases/demo-housing-mixed --out ..
 
 对照预期见 `cases/demo-housing-near-miss/ground_truth.json`。
 
+## 正确包考点（`demo-housing-complete`）
+
+合成项目「云港新区市民活动中心图书馆工程」，约 22 份 PDF，**无种植缺陷**：
+
+- 全部 `housing-construction` 必需项已提供（含正式 E-01、消防 G-01）
+- 可选 B-02、G-02 亦提供
+- 项目编号 / 合同金额 / 参建单位与 `manifest.json` 一致
+- 无错传、无重复文件编号、无不可读页
+
+对照预期见 `cases/demo-housing-complete/ground_truth.json`。
+
 ## 规则模板
 
 `engineering-archive-audit/rules/` 下 JSON 可配置，默认 `housing-construction.json`（房屋建筑）。道路/桥梁、市政管线为占位清单，可按公开目录替换，避免写死单一地市全文。
@@ -138,9 +160,10 @@ node scripts/generate.js build --case ../../../cases/demo-housing-mixed --out ..
 
 | 脚本 | 用途 |
 |------|------|
-| `pdf_forms.py` | 按文种异构 PDF 版式（许可/合同/检测/验收/GB50300 等） |
+| `pdf_forms.py` | 按文种异构 PDF 版式（许可/合同/检测/验收/消防/GB50300 等） |
 | `generate_demo_case.py` | 重新生成 `demo-housing-mixed` |
 | `generate_near_miss_case.py` | 重新生成 `demo-housing-near-miss` |
+| `generate_complete_case.py` | 重新生成 `demo-housing-complete`（正确对照包） |
 | `fetch_public_pdfs.py` | 拉取公开归档指南/目录类 PDF 到 `reference/` |
 
 

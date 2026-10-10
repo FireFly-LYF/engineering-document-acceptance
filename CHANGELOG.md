@@ -2,6 +2,21 @@
 
 每轮更新以独立提交追加到 `main`。已发布提交保留，版本 tag 指向对应快照。
 
+## v1.1.6 2026-10-10
+
+- 新增前端框架 `web/`：用户→工程批次、ZIP/PDF/文件夹上传、核查后目录/文件打标（演示启发式，待接 audit_prepare）。
+
+## v1.1.5 2026-10-10
+
+- `engineering-doc-generator` 大纲与执笔规则改为竣工资料核查文书结构：工程概况 → 完整性 → 一致性 → 问题与证据 → 处理意见 → 结论。
+- `engineering-archive-audit` 简报/报告用语对齐：完整性核查统计（已提供/缺失/错传或重复/需复核），交接文书 Skill 时指向上述章节顺序。
+
+## v1.1.4 2026-10-10
+
+- 新增完全正确对照包 `demo-housing-complete`（`tools/generate_complete_case.py`）：全量必需项含正式 E-01 与消防 G-01，字段与 manifest 一致，无错传/冲突/重复/不可读。
+- `pdf_forms.py` 新增 `make_fire_acceptance_opinion`（消防验收意见书版式）。
+- `audit_prepare` 冒烟：全部 required `provided`，无缺陷类 findings。
+
 ## v1.1.3 2026-10-09
 
 - 消除合成 PDF 同质化：按文种拆分 builder（规划/施工许可、GF 合同、监理合同、技术文件、检测报告、竣工封面、竣工图目录、规划核实、GB50300 附录表），不再共用「双框封面报告」。

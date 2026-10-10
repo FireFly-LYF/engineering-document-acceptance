@@ -3,6 +3,9 @@
 package-lock.json
 **/.agh/skills/**/package-lock.json
 
+# frontend build
+web/dist/
+
 # runtime / generated work products (keep source case metadata)
 cases/**/_work/
 生成结果/

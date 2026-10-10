@@ -163,16 +163,34 @@ function buildEvidence(bundle) {
   };
 }
 
+function statementTitle(projectName) {
+  const name = String(projectName || '本工程').trim() || '本工程';
+  return `关于${name}竣工资料完整性与一致性核查的情况说明`;
+}
+
 function buildOutline(facts) {
-  const name = facts.available.project_name || '本项目';
+  const name = facts.available.project_name || '本工程';
+  const c = facts.finding_counts || {};
+  const hasGap =
+    (c.missing || 0) +
+      (c.suspect_duplicate_or_misfiled || 0) +
+      (c.needs_human_review || 0) +
+      (facts.conflicts || []).length >
+    0;
   return [
-    `标题：关于${name}房屋建筑工程竣工资料完整性与一致性核查的情况说明`,
-    '一、项目与核查范围',
-    '二、核查结论摘要（四态统计，与 findings 同向）',
-    '三、主要问题与证据（missing / suspect / needs_human_review）',
-    '四、字段一致性说明（conflicts）',
-    '五、处理建议与下一步',
-    '六、落款（特此说明！+ 日期）',
+    `标题：${statementTitle(name)}`,
+    '开场：写明工程名称、建设/施工/监理单位（facts 有则写）、核查依据（归档清单与规则档）及本次核查范围；过渡句用「现就本工程竣工资料核查有关情况说明如下」',
+    '一、工程及核查基本情况（工程概况、清单项数、已归集材料份数；不写磁盘路径）',
+    '二、资料完整性核查情况（对照归档目录：已提供、缺失、错传或重复；用资料标准名与清单编号，不用英文状态码）',
+    '三、资料一致性核查情况（工程名称、工程编号、开工/竣工日期、签章主体等本工程字段；错传他项引起的级联差异勿写成多条本工程冲突）',
+    hasGap
+      ? '四、主要问题及证据说明（分层：缺失 → 错传（他项）→ 重复 → 本工程字段冲突；每段写清事实、影响与短文件名；段末「附件：…」仅名称）'
+      : '四、主要问题及证据说明（本次无缺失/错传/重复/本工程冲突时，写明经核对未发现上述问题，勿编造缺项）',
+    '五、处理意见与建议（补齐缺项、更正错传/冲突、退回重报、指定人工复核；有期限事实才写期限）',
+    hasGap
+      ? '六、核查结论（概括齐套与一致性总体判断；有缺失不得写全部齐套合格；预验收不能替代正式竣工验收报告）'
+      : '六、核查结论（资料按清单齐套、关键字段未见冲突；结论与 findings 同向，勿夸大）',
+    '落款：「特此说明！」+ 日期（用 facts.current_date）',
   ];
 }
 
@@ -194,26 +212,30 @@ function writeAgentBrief(bundle, facts, evidence, outline) {
   lines.push('# Agent 执笔简报（请只据此与 facts/evidence 写正文.md）');
   lines.push('');
   lines.push('## 任务');
-  lines.push('撰写《建设工程竣工资料核查情况说明》正文，证据驱动，禁止占位符填空与编造。');
+  lines.push(
+    '撰写《房屋建筑工程竣工资料完整性与一致性核查情况说明》正文。' +
+      '口吻为工程资料核查说明（对照归档清单做齐套与一致性核查），证据驱动，禁止占位符填空与编造。'
+  );
   lines.push('');
-  lines.push('## 项目要点（仅列已有值）');
+  lines.push('## 工程要点（仅列已有值）');
   for (const [k, v] of Object.entries(a)) {
     if (k === 'current_date') continue;
     lines.push(`- ${k}: ${v}`);
   }
   lines.push(`- 落款日期可用: ${a.current_date || getCurrentDate()}`);
   lines.push('');
-  lines.push('## 四态统计');
+  lines.push('## 完整性核查统计（对照归档清单）');
   lines.push(
     `- 已提供 ${c.provided || 0}；缺失 ${c.missing || 0}；` +
       `错传或重复 ${c.suspect_duplicate_or_misfiled || 0}；` +
-      `本工程字段复核 ${c.needs_human_review || 0}`
+      `需人工复核 ${c.needs_human_review || 0}`
   );
+  lines.push(`- 已归集材料份数: ${evidence.count}`);
   lines.push('');
   lines.push('## 须写入正文的重要问题（勿增删结论方向）');
-  lines.push('分层：缺失 → 错传 → 重复 → 本工程字段冲突。勿把错传引起的级联差异写成多条本工程冲突。');
+  lines.push('分层：缺失 → 错传（他项工程）→ 重复 → 本工程字段冲突。勿把错传引起的级联差异写成多条本工程冲突。');
   if (!facts.important_findings.length) {
-    lines.push('- （无缺失/错传/重复/本工程冲突；若全为已提供，结论写齐套，勿夸大）');
+    lines.push('- （无缺失/错传/重复/本工程冲突；结论写资料齐套、未见明显一致性问题，勿夸大）');
   } else {
     for (const it of facts.important_findings) {
       const tip = [];
@@ -240,17 +262,16 @@ function writeAgentBrief(bundle, facts, evidence, outline) {
     lines.push(`> ${facts.consensus_note}`);
   }
   lines.push('');
-  lines.push('## 章节大纲');
+  lines.push('## 章节大纲（须按此顺序撰写，对齐竣工资料核查情况说明惯例）');
   for (const o of outline) lines.push(`- ${o}`);
   lines.push('');
   lines.push('## 硬约束');
-  lines.push('- 不写磁盘路径；附件行只写短文件名/资料标准名');
-  lines.push('- 有 missing 不得写「全部齐套合格」');
-  lines.push('- 预验收默认不能替代正式竣工验收报告');
+  lines.push('- 只写工程资料核查用语；不写磁盘路径；附件行只写短文件名/资料标准名');
+  lines.push('- 有缺失不得写「全部齐套合格」');
+  lines.push('- 预验收默认不能替代正式《工程竣工验收报告》');
   lines.push('- 错传单独成段；本工程真冲突写清取值与短文件名');
   lines.push('- 写完后执行: node scripts/generate.js build --case <caseDir>');
   lines.push('');
-  lines.push(`## 材料份数: ${evidence.count}`);
   return lines.join('\n');
 }
 
@@ -275,7 +296,15 @@ function prepareCase(caseDir) {
   fs.writeFileSync(path.join(wd, 'evidence.json'), JSON.stringify(evidence, null, 2), 'utf8');
   fs.writeFileSync(
     path.join(wd, 'outline.md'),
-    ['# 情况说明大纲', '', ...outline.map((x) => `- ${x}`), ''].join('\n'),
+    [
+      '# 竣工资料核查情况说明大纲',
+      '',
+      '参照房屋建筑竣工资料/档案验收核查惯例组织章节（完整性 → 一致性 → 问题与证据 → 处理意见 → 结论）。',
+      '正文只写资料标准名、清单编号与报告编号；不写磁盘路径。',
+      '',
+      ...outline.map((x) => `- ${x}`),
+      '',
+    ].join('\n'),
     'utf8'
   );
   fs.writeFileSync(path.join(wd, 'agent-brief.md'), writeAgentBrief(bundle, facts, evidence, outline), 'utf8');
@@ -290,8 +319,7 @@ function prepareCase(caseDir) {
     );
   }
 
-  const title =
-    `关于${facts.available.project_name || '本项目'}房屋建筑工程竣工资料完整性与一致性核查的情况说明.docx`;
+  const title = `${statementTitle(facts.available.project_name)}.docx`;
   fs.writeFileSync(
     path.join(wd, 'statement-meta.json'),
     JSON.stringify(
@@ -539,9 +567,7 @@ async function buildCase(caseDir, outRoot) {
     throw new Error('正文.md 仍是占位稿，请先由 Agent 写完整正文: ' + bodyPath);
   }
   const meta = readJson(path.join(wd, 'statement-meta.json'), {}) || {};
-  const title =
-    meta.title ||
-    '关于房屋建筑工程竣工资料完整性与一致性核查的情况说明.docx';
+  const title = meta.title || `${statementTitle('本工程')}.docx`;
   const outDir = outRoot ? path.resolve(outRoot) : path.join(abs, '生成结果');
   ensureDir(outDir);
   const docxPath = path.join(outDir, title.replace(/[\\/:*?"<>|]/g, '_'));

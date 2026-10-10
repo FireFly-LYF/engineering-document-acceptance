@@ -1,5 +1,6 @@
 ---
-name: engineering-archive-audit
+
+## name: engineering-archive-audit
 description: >-
   Audits a construction project file pack for completeness and cross-document
   consistency against a configurable archive checklist (房屋建筑 / 道路桥梁 /
@@ -7,7 +8,6 @@ description: >-
   mismatched / conflicting items with evidence. Use when the user says 竣工资料核查,
   档案完整性检查, 齐套核验, 归档目录比对, engineering-archive-audit, or asks to
   check a 建设工程竣工资料包.
----
 
 # 建设工程竣工资料 · 完整性与一致性核查
 
@@ -20,7 +20,7 @@ description: >-
 
 用户指定项目包并要求：竣工资料/档案齐套核查、缺件检查、跨文件一致性、错传/重复/冲突判定。
 
-若还要正式「情况说明」Word：核查完成后点名 **`engineering-doc-generator`**（文书生成 Skill）。
+若还要正式「情况说明」Word：核查完成后点名 `**engineering-doc-generator`**（文书生成 Skill）。
 
 ## 目录约定（工作区）
 
@@ -38,30 +38,32 @@ engineering-document-acceptance/
     └── _work/
 ```
 
-**只读**：`cases/<id>/files/**`、`manifest.json`、本 Skill `rules/**`。  
-**可写**：仅 `cases/<id>/_work/**`。
+**只读**：`cases/<id>/files/`**、`manifest.json`、本 Skill `rules/**`。  
+**可写**：仅 `cases/<id>/_work/`**。
 
 ## 规则模板层（可配置，勿写死一地目录）
 
 1. 优先读取用户指定的规则文件路径。
 2. 否则读 `cases/<id>/manifest.json` 的 `project_type` / `rules_profile`。
 3. 再否则按工程类型加载本 Skill 内：
-   - `rules/housing-construction.json` — 房屋建筑工程（默认）
-   - `rules/road-bridge.json` — 道路/桥梁（可后续补全）
-   - `rules/municipal-pipeline.json` — 市政管线（可后续补全）
+  - `rules/housing-construction.json` — 房屋建筑工程（默认）
+  - `rules/road-bridge.json` — 道路/桥梁（可后续补全）
+  - `rules/municipal-pipeline.json` — 市政管线（可后续补全）
 4. 若对应 JSON 不存在或 `required_documents` 为空：在报告首页声明「规则模板未就绪」，仍做接收清单、分类与字段抽取，**完整性缺失判定标为「规则不足，未判定」**，禁止虚构地方标准条文。
 
 规则条目最小字段：
 
-| 字段 | 含义 |
-|------|------|
-| `code` | 清单编号（如 E-01） |
-| `name` | 标准名称 |
-| `required` | 是否必需 |
-| `stage` | 阶段：工程准备 / 监理 / 施工 / 竣工图 / 竣工验收 / 专项验收 等 |
-| `category` | 分类标签（与下文分类层对齐） |
-| `aliases` | 别名，用于匹配文件名与文内标题 |
-| `notes` | 可选：不能被何种类文件替代等说明 |
+
+| 字段         | 含义                                      |
+| ---------- | --------------------------------------- |
+| `code`     | 清单编号（如 E-01）                            |
+| `name`     | 标准名称                                    |
+| `required` | 是否必需                                    |
+| `stage`    | 阶段：工程准备 / 监理 / 施工 / 竣工图 / 竣工验收 / 专项验收 等 |
+| `category` | 分类标签（与下文分类层对齐）                          |
+| `aliases`  | 别名，用于匹配文件名与文内标题                         |
+| `notes`    | 可选：不能被何种类文件替代等说明                        |
+
 
 **上位依据（表述用，勿假装已加载全文）**：住房城乡建设部《建设工程文件归档规范》及相关地方「归档目录 / 办事指南 / 空白样表」仅作规则模板来源说明；具体项目以当前加载的 JSON 清单为准。
 
@@ -74,7 +76,7 @@ engineering-document-acceptance/
 - [ ] 3. 阅读 _work/audit-brief.md + findings.json（不要通读全部 PDF）
 - [ ] 4. 仅对本工程字段冲突 / 错传 / 明显误判做抽查修正；勿把错传级联当多条本工程冲突
 - [ ] 5. 如需，润色 audit-report.md（不改结论方向）
-- [ ] 6. 摘要四态统计；文书需求交给 engineering-doc-generator（prepare 会另写 agent-brief.md）
+- [ ] 6. 摘要完整性核查统计（已提供/缺失/错传或重复/需复核）；文书交给 engineering-doc-generator
 ```
 
 ### 确定性脚本（必跑）
@@ -112,18 +114,20 @@ ZIP：先解压到 `cases/<id>/files/` 或 `_work/extracted/`，再跑脚本。
 
 主类枚举：
 
-| category | 说明 |
-|----------|------|
-| `contract` | 合同类 |
-| `preparation` | 开工准备类 |
-| `supervision` | 监理类 |
-| `construction` | 施工记录类 |
-| `material_test` | 材料检测类 |
-| `as_built_drawing` | 竣工图 |
+
+| category                | 说明    |
+| ----------------------- | ----- |
+| `contract`              | 合同类   |
+| `preparation`           | 开工准备类 |
+| `supervision`           | 监理类   |
+| `construction`          | 施工记录类 |
+| `material_test`         | 材料检测类 |
+| `as_built_drawing`      | 竣工图   |
 | `completion_acceptance` | 竣工验收类 |
-| `special_acceptance` | 专项验收类 |
-| `other` | 其他 |
-| `unknown` | 无法判断 |
+| `special_acceptance`    | 专项验收类 |
+| `other`                 | 其他    |
+| `unknown`               | 无法判断  |
+
 
 **禁止只依赖文件名。** 综合：
 
@@ -157,14 +161,18 @@ ZIP：先解压到 `cases/<id>/files/` 或 `_work/extracted/`，再跑脚本。
 
 对照已加载规则，对每个 `required_documents[]` 条目及跨文件约束产出 `_work/findings.json`。
 
-### 四态（条目级 `status`）
+### 完整性核查状态（条目级 `status`）
 
-| status | 含义 |
-|--------|------|
-| `provided` | 已提供且可对齐该清单项 |
-| `missing` | 必需项未找到可接受文件 |
-| `suspect_duplicate_or_misfiled` | 疑似重复或错传（含他项工程文件混入） |
-| `needs_human_review` | 证据不足或别名近似，需人工确认 |
+对照归档清单逐项判定，用语与竣工资料核查记录一致：
+
+
+| status                          | 文书用语  | 含义                      |
+| ------------------------------- | ----- | ----------------------- |
+| `provided`                      | 已提供   | 已提供且可对齐该清单项             |
+| `missing`                       | 缺失    | 必需项未找到可接受文件             |
+| `suspect_duplicate_or_misfiled` | 错传或重复 | 疑似重复或错传（含他项工程文件混入）      |
+| `needs_human_review`            | 需复核   | 证据不足、别名近似或本工程字段冲突，需人工确认 |
+
 
 另可在 finding 上使用 `severity`：`info` / `warning` / `error`。
 
@@ -199,29 +207,33 @@ ZIP：先解压到 `cases/<id>/files/` 或 `_work/extracted/`，再跑脚本。
 
 报告首页还需：
 
-- 项目标识（名称/编号，来自共识或 manifest）
+- 工程标识（名称/编号，来自共识或 manifest）
 - 所用规则模板文件名与 `project_type`
-- 统计：provided / missing / suspect / needs_human_review 计数
-- 明确声明：未使用真实敏感档案批量爬取；本包为用户提供或合成演示数据
+- 完整性核查统计：已提供 / 缺失 / 错传或重复 / 需复核
+- 一致性摘要：本工程字段冲突条数（错传他项已排除）
+- 明确声明：本包为用户提供或合成演示数据
 
 ## 产物清单（一次核查至少写出）
 
-| 文件 | 内容 |
-|------|------|
-| `_work/inventory.json` | 接收清单 |
-| `_work/classification.json` | 分类结果 |
-| `_work/fields.json` | 分文件字段 |
-| `_work/field_consensus.json` | 共识与冲突 |
-| `_work/findings.json` | 结构化核查结论 |
-| `_work/audit-report.md` | 证据链报告 |
+
+| 文件                           | 内容      |
+| ---------------------------- | ------- |
+| `_work/inventory.json`       | 接收清单    |
+| `_work/classification.json`  | 分类结果    |
+| `_work/fields.json`          | 分文件字段   |
+| `_work/field_consensus.json` | 共识与冲突   |
+| `_work/findings.json`        | 结构化核查结论 |
+| `_work/audit-report.md`      | 证据链报告   |
+
 
 `_work/audit-brief.md`：核查抽查用精简摘要。文书执笔请读 `engineering-doc-generator` prepare 生成的 `agent-brief.md`。
 
 ## 执行方式
 
-1. **脚本**：清单匹配、PDF 文本层抽字段、冲突/缺件/错传/重复初判（确定性）。  
-2. **Agent**：只处理 brief 中的疑点与润色，不重跑全量抽取。  
-3. 字段锚优先 `manifest` / 合同 / 验收类文件；四态仅用 provided / missing / suspect_duplicate_or_misfiled / needs_human_review。  
+1. **脚本**：清单匹配、PDF 文本层抽字段、冲突/缺件/错传/重复初判（确定性）。
+2. **Agent**：只处理 brief 中的疑点与润色，不重跑全量抽取。
+3. 字段锚优先 `manifest` / 合同 / 验收类文件；完整性状态仅用 provided / missing / suspect_duplicate_or_misfiled / needs_human_review。
+
 不使用 Workflow 编排。
 
 ## 异常与边界
@@ -233,4 +245,13 @@ ZIP：先解压到 `cases/<id>/files/` 或 `_work/extracted/`，再跑脚本。
 
 ## 完成后如何交给文书 Skill
 
-> 使用 engineering-doc-generator：先 `node scripts/generate.js prepare --case cases/<id>`，再撰写正文并 build 导出 docx。
+使用 **engineering-doc-generator** 生成《竣工资料完整性与一致性核查情况说明》：
+
+```bash
+cd .agh/skills/engineering-doc-generator
+node scripts/generate.js prepare --case ../../../cases/<id>
+# 按 outline.md：工程概况 → 完整性 → 一致性 → 问题与证据 → 处理意见 → 结论
+# 撰写 ../../../cases/<id>/_work/正文.md
+node scripts/generate.js build --case ../../../cases/<id> --out ../../../生成结果
+```
+

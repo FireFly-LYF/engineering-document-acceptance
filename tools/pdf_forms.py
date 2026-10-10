@@ -900,6 +900,75 @@ def make_planning_verify_cert(
     save(doc, path)
 
 
+def make_fire_acceptance_opinion(
+    path: Path,
+    *,
+    meta: dict,
+    body_lines: Iterable[str] = (),
+    scan_style: bool = False,
+    opinion_no: str = "",
+    conclusion: str = "同意投入使用",
+    authority: str = "云港市消防救援支队",
+) -> None:
+    """消防验收意见书 / 备案凭证风格（专项验收）。"""
+    doc = fitz.open()
+    page = _new_page(doc, scan_style)
+    page.draw_rect(fitz.Rect(36, 36, 559, 100), color=(0.55, 0.12, 0.12), fill=(0.55, 0.12, 0.12))
+    _text(page, 150, 62, "建设工程消防验收意见书", size=16, color=(1, 1, 1))
+    _text(page, 48, 120, f"意见书编号：{opinion_no or meta.get('文件编号', '')}", size=10)
+    _text(page, 48, 138, f"文件编号：{meta.get('文件编号', '')}", size=9)
+
+    y = 165
+    rows = [
+        ("工程名称", meta.get("项目名称", "")),
+        ("项目编号", meta.get("项目编号", "")),
+        ("建设单位", meta.get("建设单位", "")),
+        ("施工单位", meta.get("施工单位", "")),
+        ("监理单位", meta.get("监理单位", "")),
+        ("设计单位", meta.get("设计单位", "")),
+        ("工程地址", meta.get("工程地址", "")),
+        ("开工日期", meta.get("开工日期", "")),
+        ("竣工日期", meta.get("竣工日期", "")),
+        ("合同金额（元）", meta.get("合同金额（元）") or meta.get("合同金额", "")),
+    ]
+    x0, x1 = 48, 547
+    for label, val in rows:
+        _rect(page, fitz.Rect(x0, y, 170, y + 24), 0.5)
+        _rect(page, fitz.Rect(170, y, x1, y + 24), 0.5)
+        _box_text(page, fitz.Rect(x0 + 4, y + 5, 166, y + 20), label, size=9)
+        _box_text(page, fitz.Rect(174, y + 5, x1 - 4, y + 20), val, size=9)
+        y += 24
+
+    y += 16
+    _text(page, 48, y, "验收意见", size=12)
+    y += 18
+    defaults = [
+        "依据消防法律、法规及工程建设消防技术标准，对本工程消防设施与消防安全条件进行验收。",
+        "消防设施检测合格，疏散通道、安全出口及消防水源符合要求。",
+    ]
+    for line in defaults + list(body_lines):
+        while len(line) > 44:
+            _text(page, 56, y, line[:44], size=10)
+            line = line[44:]
+            y += 16
+        _text(page, 56, y, line, size=10)
+        y += 18
+
+    y = max(y + 20, 620)
+    _rect(page, fitz.Rect(48, y, 547, y + 50), 0.8)
+    _box_text(
+        page,
+        fitz.Rect(56, y + 12, 539, y + 42),
+        f"验收结论：{conclusion}",
+        size=12,
+    )
+    _text(page, 48, y + 70, f"验收机关：{authority}", size=10)
+    _text(page, 48, y + 90, "签发日期：2025年11月25日", size=10)
+    seal(page, 430, y + 40, "消防专用章", color=(0.55, 0.12, 0.12))
+    write_fields(page, meta, 48, 760)
+    save(doc, path)
+
+
 def make_official_report(
     path: Path,
     *,

@@ -457,14 +457,14 @@ def write_audit_report(
         f"- 生成时间：{datetime.now(timezone.utc).isoformat()}",
         f"- 数据说明：合成演示或用户提供材料；本报告由确定性脚本生成，可供 Agent 润色",
         "",
-        "## 统计",
+        "## 完整性核查统计",
         "",
         f"- 已提供：{counts['provided']}",
         f"- 缺失：{counts['missing']}",
-        f"- 疑似错传或重复：{counts['suspect_duplicate_or_misfiled']}",
-        f"- 需人工复核（本工程字段冲突）：{counts['needs_human_review']}",
+        f"- 错传或重复：{counts['suspect_duplicate_or_misfiled']}",
+        f"- 需复核：{counts['needs_human_review']}",
         "",
-        "## 问题与证据",
+        "## 主要问题与证据",
         "",
     ]
     for f in findings:
@@ -496,20 +496,20 @@ def write_audit_brief(path: Path, findings: list[dict], consensus: dict) -> None
     for f in findings:
         counts[f.get("status", "other")] += 1
     lines = [
-        "# 核查 Agent 简报（优先读此文件，勿通读全部 PDF）",
+        "# 竣工资料核查简报（优先读此文件，勿通读全部 PDF）",
         "",
         "## 请你做的事",
         "1. 抽查本工程字段冲突与错传判定是否合理（优先看 FIELD / MISFILE）",
         "2. 如需，润色 audit-report.md 措辞（不要改结论方向）",
-        "3. 文书请启用 engineering-doc-generator：prepare → 写正文.md → build",
-        "4. 情况说明只写缺失、错传、重复、本工程真冲突；勿把错传级联字段逐条夸大",
+        "3. 正式《核查情况说明》交给 engineering-doc-generator：prepare → 写正文.md → build",
+        "4. 文书只写缺失、错传、重复、本工程真冲突；勿把错传级联字段逐条夸大",
         "",
-        "## 四态统计",
+        "## 完整性核查统计",
         f"- 已提供 {counts['provided']}；缺失 {counts['missing']}；"
-        f"错传/重复 {counts['suspect_duplicate_or_misfiled']}；"
-        f"本工程字段复核 {counts['needs_human_review']}",
+        f"错传或重复 {counts['suspect_duplicate_or_misfiled']}；"
+        f"需复核 {counts['needs_human_review']}",
         "",
-        "## 重要 findings（短文件名）",
+        "## 重要问题（短文件名）",
         "",
     ]
     for f in important:
