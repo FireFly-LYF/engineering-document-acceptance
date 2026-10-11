@@ -6,7 +6,8 @@
  *
  * 用法（在 engineering-doc-generator 目录）:
  *   node scripts/generate.js prepare --case ../../../cases/demo-housing-mixed
- *   node scripts/generate.js build   --case ../../../cases/demo-housing-mixed [--out ../../../生成结果]
+ *   node scripts/generate.js build   --case ../../../cases/demo-housing-mixed
+ *   # 默认输出到 cases/<id>/doc/；勿写到仓库根
  *
  * 正文由 Agent 按 SKILL.md 撰写；脚本不写正文内容，只 prepare 结构化材料与 build 版式。
  */
@@ -568,7 +569,12 @@ async function buildCase(caseDir, outRoot) {
   }
   const meta = readJson(path.join(wd, 'statement-meta.json'), {}) || {};
   const title = meta.title || `${statementTitle('本工程')}.docx`;
-  const outDir = outRoot ? path.resolve(outRoot) : path.join(abs, '生成结果');
+  // 默认 cases/<id>/doc/；显式 --out 也必须落在本 case 目录内
+  const outDir = outRoot ? path.resolve(outRoot) : path.join(abs, 'doc');
+  const relOut = path.relative(abs, outDir);
+  if (!relOut || relOut.startsWith('..') || path.isAbsolute(relOut)) {
+    throw new Error('docx 输出目录必须在本 case 内（默认 cases/<id>/doc）: ' + outDir);
+  }
   ensureDir(outDir);
   const docxPath = path.join(outDir, title.replace(/[\\/:*?"<>|]/g, '_'));
   await buildDocxFromMarkdown(md, docxPath);
@@ -594,7 +600,7 @@ async function main() {
   if (!opts.cmd || !opts.caseDir) {
     console.log(`用法:
   node scripts/generate.js prepare --case <cases/项目目录>
-  node scripts/generate.js build   --case <cases/项目目录> [--out <输出目录>]`);
+  node scripts/generate.js build   --case <cases/项目目录> [--out <本case内目录，默认doc>]`);
     process.exit(1);
   }
   if (opts.cmd === 'prepare') prepareCase(opts.caseDir);

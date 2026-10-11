@@ -13,6 +13,7 @@ cases/*
 !cases/demo-housing-near-miss/
 # still ignore generated work products inside demos
 cases/**/_work/
+cases/**/doc/
 生成结果/
 **/生成结果/
 

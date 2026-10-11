@@ -284,9 +284,7 @@ function App() {
         folderMarks,
         summary: {
           ...summary,
-          note:
-            note ||
-            '结果来自 cases/<id>/_work/findings.json（AGH / audit_prepare 产物）。',
+          note,
         },
         auditStatus: 'done',
         aghMessage: undefined,

@@ -1,7 +1,6 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
-  EDA_ROOT,
   caseDir,
   filesDir,
   resolveUnderFiles,
@@ -223,7 +222,7 @@ export async function writeAuditPrompt(id: string, projectName: string) {
     `请使用 engineering-archive-audit 对 cases/${id} 做工程验收资料材料齐全与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。`,
     '',
     '核查完成后，必须使用 engineering-doc-generator：prepare → 撰写 `_work/正文.md` → build 导出 Word。',
-    `build 时不要加 --out，使 docx 输出到 cases/${id}/生成结果/。`,
+    `build 时不要加 --out，使 docx 输出到 cases/${id}/doc/ `,
     '',
     '结论需覆盖：缺失文件、错传文件、文件中冲突字段、重复文件。',
     '',
@@ -260,43 +259,12 @@ async function listDocxIn(dir: string): Promise<Array<{ abs: string; name: strin
   return out.sort((a, b) => b.mtimeMs - a.mtimeMs)
 }
 
-async function readStatementMetaTitle(id: string): Promise<string | null> {
-  try {
-    const raw = await fs.readFile(path.join(workDir(id), 'statement-meta.json'), 'utf8')
-    const meta = JSON.parse(raw) as { title?: string }
-    return meta.title?.trim() || null
-  } catch {
-    return null
-  }
-}
-
-/** 查找本工程说明 Word：优先 cases/<id>/生成结果，其次仓库根 生成结果 */
+/** 查找本工程说明 Word：仅 cases/<id>/doc/（不读仓库根或其他 case） */
 export async function findStatementDocx(
   id: string,
 ): Promise<{ abs: string; fileName: string } | null> {
-  const local = await listDocxIn(path.join(caseDir(id), '生成结果'))
+  const local = await listDocxIn(path.join(caseDir(id), 'doc'))
   if (local[0]) return { abs: local[0].abs, fileName: local[0].name }
-
-  const title = await readStatementMetaTitle(id)
-  const rootDocs = await listDocxIn(path.join(EDA_ROOT, '生成结果'))
-  if (title) {
-    const safe = title.replace(/[\\/:*?"<>|]/g, '_')
-    const hit = rootDocs.find((d) => d.name === title || d.name === safe)
-    if (hit) return { abs: hit.abs, fileName: hit.name }
-  }
-  if (title && rootDocs[0]) {
-    const body = path.join(workDir(id), '正文.md')
-    if (await pathExists(body)) {
-      try {
-        const bst = await fs.stat(body)
-        if (rootDocs[0].mtimeMs >= bst.mtimeMs - 60_000) {
-          return { abs: rootDocs[0].abs, fileName: rootDocs[0].name }
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-  }
   return null
 }
 

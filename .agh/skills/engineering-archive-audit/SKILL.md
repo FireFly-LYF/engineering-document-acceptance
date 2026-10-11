@@ -252,6 +252,7 @@ cd .agh/skills/engineering-doc-generator
 node scripts/generate.js prepare --case ../../../cases/<id>
 # 按 outline.md：工程概况 → 完整性 → 一致性 → 问题与证据 → 处理意见 → 结论
 # 撰写 ../../../cases/<id>/_work/正文.md
-node scripts/generate.js build --case ../../../cases/<id> --out ../../../生成结果
+node scripts/generate.js build --case ../../../cases/<id>
+# docx → cases/<id>/doc/
 ```
 

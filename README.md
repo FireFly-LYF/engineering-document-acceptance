@@ -113,7 +113,8 @@ python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cas
 cd .agh/skills/engineering-doc-generator
 node scripts/generate.js prepare --case ../../../cases/demo-housing-mixed
 # Agent 撰写 cases/.../_work/正文.md 后：
-node scripts/generate.js build --case ../../../cases/demo-housing-mixed --out ../../../生成结果
+node scripts/generate.js build --case ../../../cases/demo-housing-mixed
+# docx → cases/demo-housing-mixed/doc/
 ```
 
 ## 演示包考点（`demo-housing-mixed`）

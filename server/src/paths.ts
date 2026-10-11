@@ -16,10 +16,11 @@ export const AGH_CLI = path.resolve(
     path.join(EDA_ROOT, '..', 'agnes-harness', 'packages', 'cli', 'dist', 'local', 'agnes.mjs'),
 )
 
-/** start-dev 写入 .dev-logs/agh-web-origin.txt（端口回退时），每次读取以免指到已死的 4177 */
+/**
+ * start-dev 写入 .dev-logs/agh-web-origin.txt（含 4177→4178 回退）。
+ * 优先读文件：API 进程里残留的 AGNES_WEB_ORIGIN 常比真实 serve 端口旧。
+ */
 export function getAghWebOrigin(): string {
-  const fromEnv = process.env.AGNES_WEB_ORIGIN?.trim()
-  if (fromEnv) return fromEnv.replace(/\/$/, '')
   try {
     const p = path.join(EDA_ROOT, '.dev-logs', 'agh-web-origin.txt')
     const raw = fs.readFileSync(p, 'utf8').trim()
@@ -27,6 +28,8 @@ export function getAghWebOrigin(): string {
   } catch {
     /* ignore */
   }
+  const fromEnv = process.env.AGNES_WEB_ORIGIN?.trim()
+  if (fromEnv) return fromEnv.replace(/\/$/, '')
   return 'http://127.0.0.1:4177'
 }
 

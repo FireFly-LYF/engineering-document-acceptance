@@ -48,7 +48,8 @@ npm install   # 首次（勿把 npm script 命名为 prepare，会与 npm 生命
 
 node scripts/generate.js prepare --case ../../../cases/demo-housing-mixed
 # 然后撰写 ../../../cases/demo-housing-mixed/_work/正文.md
-node scripts/generate.js build   --case ../../../cases/demo-housing-mixed --out ../../../生成结果
+node scripts/generate.js build   --case ../../../cases/demo-housing-mixed
+# docx 默认写到 cases/demo-housing-mixed/doc/（不要 --out 到仓库根）
 ```
 
 ## 执行进度

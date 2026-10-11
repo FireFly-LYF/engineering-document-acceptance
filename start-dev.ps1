@@ -4,6 +4,8 @@
 #
 # CRITICAL: AGH serve MUST use EDA root as workspace (--cwd), same as server -p.
 # If serve runs under agnes-harness, web shows transport closed / empty session.
+#
+# Ctrl+C / 关掉本窗口 = 正常退出，会顺带停掉后台 API 与 AGH（见 finally）。
 
 $ErrorActionPreference = 'Stop'
 
@@ -39,6 +41,10 @@ function Invoke-TaskKillSafe([int]$ProcId) {
   $prev = $ErrorActionPreference
   $ErrorActionPreference = 'Continue'
   try {
+    # cmd taskkill; 部分 pid 需重试
+    $null = cmd.exe /c "taskkill /PID $ProcId /T /F >nul 2>&1"
+    if ($LASTEXITCODE -eq 0) { return $true }
+    Start-Sleep -Milliseconds 200
     $null = cmd.exe /c "taskkill /PID $ProcId /T /F >nul 2>&1"
     return ($LASTEXITCODE -eq 0)
   } catch {
@@ -56,25 +62,46 @@ function Stop-Tree([System.Diagnostics.Process]$proc) {
 }
 
 function Stop-PortListener([int]$Port) {
-  $conns = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
-  foreach ($c in $conns) {
-    $procId = $c.OwningProcess
-    if ($procId -and $procId -ne 0) {
-      Write-Host "[start-dev] free port $Port (kill pid $procId)" -ForegroundColor DarkYellow
-      if (-not (Invoke-TaskKillSafe $procId)) {
-        Write-Host "[start-dev] could not kill pid $procId — will try another port if needed" -ForegroundColor DarkYellow
+  for ($attempt = 0; $attempt -lt 3; $attempt++) {
+    $conns = @(Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
+    if ($conns.Count -eq 0) { return $true }
+    foreach ($c in $conns) {
+      $procId = $c.OwningProcess
+      if ($procId -and $procId -ne 0) {
+        Write-Host "[start-dev] free port $Port (kill pid $procId)" -ForegroundColor DarkYellow
+        if (-not (Invoke-TaskKillSafe $procId)) {
+          Write-Host "[start-dev] could not kill pid $procId (Access Denied?); retry..." -ForegroundColor DarkYellow
+        }
       }
     }
+    Start-Sleep -Milliseconds 400
   }
+  return -not (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
 }
 
 function Test-PortFree([int]$Port) {
   -not (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue)
 }
 
+function Stop-MatchingNode([string]$Pattern) {
+  $prev = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
+      Where-Object { $_.CommandLine -match $Pattern } |
+      ForEach-Object {
+        Write-Host "[start-dev] kill leftover node pid $($_.ProcessId)" -ForegroundColor DarkYellow
+        [void](Invoke-TaskKillSafe $_.ProcessId)
+      }
+  } finally {
+    $ErrorActionPreference = $prev
+  }
+}
+
 $apiProc = $null
 $aghProc = $null
 $code = 0
+$prevLocation = Get-Location
 
 try {
   $env:AGNES_PROFILE = 'local-dev'
@@ -87,41 +114,53 @@ try {
     & node.exe $AghCli daemon stop --profile local-dev 2>$null | Out-Null
   } catch { }
 
-  $prevKill = $ErrorActionPreference
-  $ErrorActionPreference = 'Continue'
-  Get-CimInstance Win32_Process -Filter "Name='node.exe'" -ErrorAction SilentlyContinue |
-    Where-Object { $_.CommandLine -match 'daemon\.mjs|agnes\.mjs serve' } |
-    ForEach-Object {
-      Write-Host "[start-dev] kill leftover agnes pid $($_.ProcessId)" -ForegroundColor DarkYellow
-      [void](Invoke-TaskKillSafe $_.ProcessId)
-    }
-  $ErrorActionPreference = $prevKill
+  Stop-MatchingNode 'daemon\.mjs|agnes\.mjs serve|agnes\.mjs -p'
+  Stop-MatchingNode 'tsx\\dist\\cli\.mjs|tsx/dist/cli\.mjs'
+  Stop-MatchingNode 'vite\\bin\\vite\.js|vite/bin/vite\.js'
 
-  Stop-PortListener 4177
-  Stop-PortListener 4178
-  Stop-PortListener 8787
-  Start-Sleep -Milliseconds 800
+  [void](Stop-PortListener 4177)
+  [void](Stop-PortListener 4178)
+  [void](Stop-PortListener 8787)
+  [void](Stop-PortListener 5173)
+  Start-Sleep -Milliseconds 600
 
   $aghPort = 4177
   if (-not (Test-PortFree 4177)) {
-    Write-Host '[start-dev] 4177 stuck — falling back to 4178' -ForegroundColor DarkYellow
+    Write-Host '[start-dev] 4177 still busy - falling back to 4178' -ForegroundColor DarkYellow
     $aghPort = 4178
-    Stop-PortListener 4178
+    [void](Stop-PortListener 4178)
   }
+
+  if (-not (Test-PortFree 8787)) {
+    # 杀不掉时：若已是本仓库 API 且健康，复用；否则报错，避免 API 起在幽灵端口
+    $reuseApi = $false
+    try {
+      $h = Invoke-WebRequest -Uri 'http://127.0.0.1:8787/api/health' -UseBasicParsing -TimeoutSec 1
+      if ($h.StatusCode -eq 200) { $reuseApi = $true }
+    } catch { }
+    if ($reuseApi) {
+      Write-Host '[start-dev] port 8787 busy but healthy - reusing existing API' -ForegroundColor DarkYellow
+    } else {
+      throw 'port 8787 is stuck and not a healthy EDA API. Close the owning process in Task Manager, then retry.'
+    }
+  }
+
   $env:AGNES_WEB_ORIGIN = "http://127.0.0.1:$aghPort"
-  # 落盘给 API 读取（Start-Process 在部分环境下不继承 $env）
+  # 落盘给 API 读取（优先于进程内陈旧 AGNES_WEB_ORIGIN）
   Set-Content -Path (Join-Path $LogDir 'agh-web-origin.txt') -Value $env:AGNES_WEB_ORIGIN -Encoding utf8
 
   Write-Host "[start-dev] AGH Web origin -> $($env:AGNES_WEB_ORIGIN)" -ForegroundColor Cyan
 
-  Write-Host '[start-dev] background API  -> http://127.0.0.1:8787' -ForegroundColor DarkGray
-  $apiProc = Start-Process -FilePath 'node.exe' `
-    -ArgumentList @($TsxCli, 'watch', 'src/index.ts') `
-    -WorkingDirectory $ServerDir `
-    -PassThru `
-    -WindowStyle Hidden `
-    -RedirectStandardOutput (Join-Path $LogDir 'api.out.log') `
-    -RedirectStandardError (Join-Path $LogDir 'api.err.log')
+  if (Test-PortFree 8787) {
+    Write-Host '[start-dev] background API  -> http://127.0.0.1:8787' -ForegroundColor DarkGray
+    $apiProc = Start-Process -FilePath 'node.exe' `
+      -ArgumentList @($TsxCli, 'watch', 'src/index.ts') `
+      -WorkingDirectory $ServerDir `
+      -PassThru `
+      -WindowStyle Hidden `
+      -RedirectStandardOutput (Join-Path $LogDir 'api.out.log') `
+      -RedirectStandardError (Join-Path $LogDir 'api.err.log')
+  }
 
   Write-Host "[start-dev] background AGH  -> http://127.0.0.1:$aghPort (serve --cwd EDA)" -ForegroundColor DarkGray
   $aghProc = Start-Process -FilePath 'node.exe' `
@@ -165,16 +204,24 @@ try {
     }
   }
 
-  Write-Host '[start-dev] foreground web (Vite output below)' -ForegroundColor Cyan
+  Write-Host '[start-dev] foreground web (Vite). Keep this window open.' -ForegroundColor Cyan
+  Write-Host '[start-dev] Ctrl+C stops Vite and also stops background API/AGH.' -ForegroundColor DarkGray
   Write-Host '----------------------------------------' -ForegroundColor DarkGray
   Set-Location $WebDir
-  & node.exe $ViteCli
+  $viteStarted = Get-Date
+  & node.exe $ViteCli --host 127.0.0.1 --port 5173
   $code = $LASTEXITCODE
+  $elapsed = ((Get-Date) - $viteStarted).TotalSeconds
+  if ($elapsed -lt 3) {
+    Write-Host "[start-dev] Vite exited in $([int]$elapsed)s (abnormal). Check port 5173 or .dev-logs." -ForegroundColor Red
+    if ($null -eq $code -or $code -eq 0) { $code = 1 }
+  }
 } finally {
   Write-Host ''
   Write-Host '[start-dev] stopping background API / AGH ...' -ForegroundColor DarkGray
   Stop-Tree $apiProc
   Stop-Tree $aghProc
+  try { Set-Location -LiteralPath $prevLocation.Path } catch { }
 }
 
 if ($null -eq $code) { exit 0 }
