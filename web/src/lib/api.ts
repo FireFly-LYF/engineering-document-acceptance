@@ -230,3 +230,19 @@ export async function apiLatestAghSession() {
   if (!res.ok) throw new Error(await parseError(res))
   return res.json() as Promise<{ sessionId: string | null; aghUrl: string }>
 }
+
+export async function apiStatementStatus(caseId: string) {
+  const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}/statement`)
+  if (!res.ok) throw new Error(await parseError(res))
+  return res.json() as Promise<{
+    ready: boolean
+    generating: boolean
+    fileName: string | null
+    hasBody: boolean
+    hasMeta: boolean
+  }>
+}
+
+export function statementDownloadUrl(caseId: string) {
+  return `/api/cases/${encodeURIComponent(caseId)}/statement/download`
+}

@@ -72,14 +72,43 @@ export function createUser(displayName: string): UserProfile {
   }
 }
 
-export function createProject(userId: string, name: string, batchLabel?: string): Project {
+/** 目录名安全片段：去掉路径非法字符，保留中文 */
+function sanitizeUserForCaseId(displayName: string): string {
+  const s = displayName
+    .trim()
+    .replace(/[\\/:*?"<>|\s]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 32)
+  return s || '未命名'
+}
+
+function formatCaseTime(d = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
+}
+
+/** 工程目录 ID：用户名-YYYYMMDD-HHmmss */
+export function makeCaseId(displayName: string, at = new Date()): string {
+  return `${sanitizeUserForCaseId(displayName)}-${formatCaseTime(at)}`
+}
+
+export function createProject(
+  userId: string,
+  displayName: string,
+  name: string,
+  batchLabel?: string,
+  takenIds?: Iterable<string>,
+): Project {
   const now = new Date().toISOString()
   const batch =
     batchLabel?.trim() ||
     `批次 ${new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}`
+  const taken = new Set(takenIds)
+  let id = makeCaseId(displayName)
+  if (taken.has(id)) id = `${id}-${crypto.randomUUID().slice(0, 4)}`
   return {
-    // 仅用十六进制，兼容后端 case id 与磁盘目录名
-    id: `p_${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`,
+    id,
     userId,
     name: name.trim() || UNNAMED_PROJECT,
     batchLabel: batch,

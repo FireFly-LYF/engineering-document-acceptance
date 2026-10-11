@@ -69,6 +69,9 @@ export interface Project {
   aghMessage?: string
   /** 本机 AGH -p 进程，用于打断 */
   aghPid?: number
+  /** 核查情况说明 Word：waiting=生成中 ready=可下载 */
+  statementStatus?: 'idle' | 'waiting' | 'ready'
+  statementFileName?: string
 }
 
 export interface UserProfile {

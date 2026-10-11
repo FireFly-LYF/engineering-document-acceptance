@@ -109,13 +109,13 @@ export function UploadPanel({
         {busy && (
           <span className="badge copper" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <LoaderCircle className="spin" size={14} />
-            正在写入 cases/{caseId}/files/
+            正在保存至 cases/{caseId}/files/
           </span>
         )}
       </div>
       <div className="panel-bd">
         <p style={{ margin: '0 0 12px', color: 'var(--muted)', fontSize: '0.82rem' }}>
-          文件将保存到磁盘目录 <code>cases/{caseId}/files/</code>
+          上传文件并保存至本地目录 <code>cases/{caseId}/files/</code>
         </p>
         <div className="upload-grid">
           <label className={`upload-card ${drag ? 'drag' : ''}`}>

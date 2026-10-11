@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
+  EDA_ROOT,
   caseDir,
   filesDir,
   resolveUnderFiles,
@@ -219,16 +220,113 @@ export async function readFindings(id: string) {
 export async function writeAuditPrompt(id: string, projectName: string) {
   await ensureCase(id, { name: projectName })
   const text = [
-    `请使用 engineering-archive-audit 对 cases/${id} 做竣工资料材料齐全与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。`,
+    `请使用 engineering-archive-audit 对 cases/${id} 做工程验收资料材料齐全与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。`,
     '',
-    '核查完成后，如条件允许，可使用 engineering-doc-generator 生成《竣工资料核查情况说明》并导出 Word。',
+    '核查完成后，必须使用 engineering-doc-generator：prepare → 撰写 `_work/正文.md` → build 导出 Word。',
+    `build 时不要加 --out，使 docx 输出到 cases/${id}/生成结果/。`,
     '',
-    '结论需覆盖：缺失项、错传（他项工程）、本工程字段冲突、重复件。',
-    '文书勿把错传级联字段写成多条本工程冲突；预验收不能替代正式竣工验收报告。',
+    '结论需覆盖：缺失文件、错传文件、文件中冲突字段、重复文件。',
     '',
     `工程名称：${projectName || id}`,
   ].join('\n')
   const promptPath = path.join(caseDir(id), 'TEST_PROMPT.txt')
   await fs.writeFile(promptPath, `${text}\n`, 'utf8')
   return text
+}
+
+async function pathExists(p: string) {
+  try {
+    await fs.access(p)
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function listDocxIn(dir: string): Promise<Array<{ abs: string; name: string; mtimeMs: number }>> {
+  if (!(await pathExists(dir))) return []
+  const names = await fs.readdir(dir)
+  const out: Array<{ abs: string; name: string; mtimeMs: number }> = []
+  for (const name of names) {
+    if (!name.toLowerCase().endsWith('.docx')) continue
+    const abs = path.join(dir, name)
+    try {
+      const st = await fs.stat(abs)
+      if (st.isFile()) out.push({ abs, name, mtimeMs: st.mtimeMs })
+    } catch {
+      /* skip */
+    }
+  }
+  return out.sort((a, b) => b.mtimeMs - a.mtimeMs)
+}
+
+async function readStatementMetaTitle(id: string): Promise<string | null> {
+  try {
+    const raw = await fs.readFile(path.join(workDir(id), 'statement-meta.json'), 'utf8')
+    const meta = JSON.parse(raw) as { title?: string }
+    return meta.title?.trim() || null
+  } catch {
+    return null
+  }
+}
+
+/** 查找本工程说明 Word：优先 cases/<id>/生成结果，其次仓库根 生成结果 */
+export async function findStatementDocx(
+  id: string,
+): Promise<{ abs: string; fileName: string } | null> {
+  const local = await listDocxIn(path.join(caseDir(id), '生成结果'))
+  if (local[0]) return { abs: local[0].abs, fileName: local[0].name }
+
+  const title = await readStatementMetaTitle(id)
+  const rootDocs = await listDocxIn(path.join(EDA_ROOT, '生成结果'))
+  if (title) {
+    const safe = title.replace(/[\\/:*?"<>|]/g, '_')
+    const hit = rootDocs.find((d) => d.name === title || d.name === safe)
+    if (hit) return { abs: hit.abs, fileName: hit.name }
+  }
+  if (title && rootDocs[0]) {
+    const body = path.join(workDir(id), '正文.md')
+    if (await pathExists(body)) {
+      try {
+        const bst = await fs.stat(body)
+        if (rootDocs[0].mtimeMs >= bst.mtimeMs - 60_000) {
+          return { abs: rootDocs[0].abs, fileName: rootDocs[0].name }
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+  return null
+}
+
+export type StatementStatus = {
+  ready: boolean
+  generating: boolean
+  fileName: string | null
+  hasBody: boolean
+  hasMeta: boolean
+}
+
+export async function getStatementStatus(id: string): Promise<StatementStatus> {
+  const found = await findStatementDocx(id)
+  if (found) {
+    return {
+      ready: true,
+      generating: false,
+      fileName: found.fileName,
+      hasBody: true,
+      hasMeta: true,
+    }
+  }
+  const hasBody = await pathExists(path.join(workDir(id), '正文.md'))
+  const hasMeta = await pathExists(path.join(workDir(id), 'statement-meta.json'))
+  const hasFindings = await pathExists(path.join(workDir(id), 'findings.json'))
+  return {
+    ready: false,
+    generating: hasFindings || hasBody || hasMeta,
+    fileName: null,
+    hasBody,
+    hasMeta,
+  }
 }

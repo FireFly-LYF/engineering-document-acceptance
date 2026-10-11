@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -15,22 +16,37 @@ export const AGH_CLI = path.resolve(
     path.join(EDA_ROOT, '..', 'agnes-harness', 'packages', 'cli', 'dist', 'local', 'agnes.mjs'),
 )
 
-export const AGH_WEB_ORIGIN = (process.env.AGH_WEB_ORIGIN || 'http://127.0.0.1:4177').replace(
-  /\/$/,
-  '',
-)
+/** start-dev 写入 .dev-logs/agh-web-origin.txt（端口回退时），每次读取以免指到已死的 4177 */
+export function getAghWebOrigin(): string {
+  const fromEnv = process.env.AGNES_WEB_ORIGIN?.trim()
+  if (fromEnv) return fromEnv.replace(/\/$/, '')
+  try {
+    const p = path.join(EDA_ROOT, '.dev-logs', 'agh-web-origin.txt')
+    const raw = fs.readFileSync(p, 'utf8').trim()
+    if (/^https?:\/\/127\.0\.0\.1:\d+\/?$/i.test(raw)) return raw.replace(/\/$/, '')
+  } catch {
+    /* ignore */
+  }
+  return 'http://127.0.0.1:4177'
+}
+
+/** @deprecated 用 getAghWebOrigin()；保留常量兼容旧 import（进程启动时快照） */
+export const AGH_WEB_ORIGIN = getAghWebOrigin()
 
 export const AGNES_PROFILE = process.env.AGNES_PROFILE || 'local-dev'
 
 export const PORT = Number(process.env.PORT || 8787)
 
-const CASE_ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/
-
+/** 允许「用户-时间」中文目录名；禁止路径穿越与 Windows 非法字符 */
 export function assertCaseId(id: string): string {
-  if (!CASE_ID_RE.test(id)) {
+  const s = String(id || '').trim()
+  if (!s || s.length > 96) {
     throw Object.assign(new Error('非法工程 ID'), { status: 400 })
   }
-  return id
+  if (s === '.' || s === '..' || s.includes('..') || /[\\/:*?"<>|\0]/.test(s)) {
+    throw Object.assign(new Error('非法工程 ID'), { status: 400 })
+  }
+  return s
 }
 
 /** 规范化相对路径，禁止跳出 files/；去掉多余的 files/ 前缀避免落成 files/files/… */

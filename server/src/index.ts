@@ -7,6 +7,8 @@ import {
   deleteFolder,
   deletePath,
   ensureCase,
+  findStatementDocx,
+  getStatementStatus,
   listCaseFiles,
   listExtraFolders,
   moveFileToFolder,
@@ -257,6 +259,31 @@ app.get('/api/cases/:id/findings', async (req, res) => {
         ? `${aghConfig().aghWebOrigin}/?session=${encodeURIComponent(sessionId)}`
         : aghConfig().aghWebOrigin + '/',
     })
+  } catch (e) {
+    sendError(res, e)
+  }
+})
+
+/** 说明 Word 生成状态（AGH 核查后自动生成） */
+app.get('/api/cases/:id/statement', async (req, res) => {
+  try {
+    const id = assertCaseId(req.params.id)
+    res.json(await getStatementStatus(id))
+  } catch (e) {
+    sendError(res, e)
+  }
+})
+
+/** 下载说明 Word */
+app.get('/api/cases/:id/statement/download', async (req, res) => {
+  try {
+    const id = assertCaseId(req.params.id)
+    const found = await findStatementDocx(id)
+    if (!found) {
+      res.status(404).json({ error: '说明文件尚未生成' })
+      return
+    }
+    res.download(found.abs, found.fileName)
   } catch (e) {
     sendError(res, e)
   }

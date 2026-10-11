@@ -21,13 +21,13 @@ import {
   apiDeleteFolder,
   apiGetConfig,
   apiGetFindings,
-  apiLatestAghSession,
   apiListFiles,
   apiMoveFile,
   apiRenameCase,
   apiRenameFile,
   apiRenameFolder,
   apiStartAudit,
+  apiStatementStatus,
 } from './lib/api'
 import { annotateFromFindings, type WorkFinding } from './lib/auditMock'
 import {
@@ -93,6 +93,7 @@ function App() {
   const cancelRenameRef = useRef(false)
   const pollRef = useRef<number | null>(null)
   const sessionPollRef = useRef<number | null>(null)
+  const statementPollRef = useRef<number | null>(null)
   /** 防止连点「开始核查」重复发起 */
   const auditLockRef = useRef(false)
 
@@ -121,16 +122,14 @@ function App() {
         if (cfg.aghWebOrigin) setAghWebOrigin(cfg.aghWebOrigin.replace(/\/$/, ''))
       })
       .catch(() => undefined)
-    // 进页预取并写入前端状态（此前只打了接口却丢掉结果，导致永远无法跳转）
-    void apiLatestAghSession()
-      .then((s) => rememberSharedSession(s.sessionId, s.aghUrl))
-      .catch(() => undefined)
+    // 不再进页预取「最近会话」——sessions list / 旧缓存常落到调试「只回复OK」
   }, [])
 
   useEffect(() => {
     return () => {
       if (pollRef.current) window.clearInterval(pollRef.current)
       if (sessionPollRef.current) window.clearInterval(sessionPollRef.current)
+      if (statementPollRef.current) window.clearInterval(statementPollRef.current)
     }
   }, [])
 
@@ -200,7 +199,13 @@ function App() {
 
   async function addProject(name: string, batchLabel: string) {
     if (!state.user) return
-    const p = createProject(state.user.id, name, batchLabel)
+    const p = createProject(
+      state.user.id,
+      state.user.displayName,
+      name,
+      batchLabel,
+      state.projects.map((x) => x.id),
+    )
     try {
       await apiCreateCase(p.id, p.name, p.batchLabel)
     } catch (e) {
@@ -285,8 +290,48 @@ function App() {
         },
         auditStatus: 'done',
         aghMessage: undefined,
+        statementStatus: p.statementStatus === 'ready' ? 'ready' : 'waiting',
       }
     })
+    startStatementPoll(projectId)
+  }
+
+  function stopStatementPoll() {
+    if (statementPollRef.current) {
+      window.clearInterval(statementPollRef.current)
+      statementPollRef.current = null
+    }
+  }
+
+  function startStatementPoll(projectId: string) {
+    stopStatementPoll()
+    let ticks = 0
+    const tick = async () => {
+      try {
+        const st = await apiStatementStatus(projectId)
+        if (st.ready) {
+          updateProject(projectId, (p) => ({
+            ...p,
+            statementStatus: 'ready',
+            statementFileName: st.fileName || undefined,
+          }))
+          stopStatementPoll()
+          return
+        }
+        updateProject(projectId, (p) => ({
+          ...p,
+          statementStatus: 'waiting',
+        }))
+      } catch {
+        /* ignore */
+      }
+    }
+    void tick()
+    statementPollRef.current = window.setInterval(() => {
+      ticks += 1
+      void tick()
+      if (ticks >= 150) stopStatementPoll()
+    }, 2000)
   }
 
   function stopPolling() {
@@ -298,6 +343,7 @@ function App() {
       window.clearInterval(sessionPollRef.current)
       sessionPollRef.current = null
     }
+    // 不打断说明文件轮询：findings 就绪后仍需等 docx
   }
 
   function startSessionPoll(projectId: string) {
@@ -378,30 +424,29 @@ function App() {
     if (active.auditStatus === 'auditing' || auditLockRef.current) return
     auditLockRef.current = true
     stopPolling()
+    stopStatementPoll()
     setFindingsHint(null)
     const projectId = active.id
-    const seededId = active.aghSessionId || sharedAghSessionId
-    const seededUrl = active.aghUrl || sharedAghUrl || undefined
-    // 立刻带上已有会话，按钮马上可点；同时再拉一次以防过期
-    void apiLatestAghSession()
-      .then((s) => {
-        if (!s.sessionId) return
-        rememberSharedSession(s.sessionId, s.aghUrl)
-        updateProject(projectId, (p) => ({
-          ...p,
-          aghSessionId: s.sessionId || p.aghSessionId,
-          aghUrl: s.aghUrl || p.aghUrl,
-        }))
-      })
-      .catch(() => undefined)
+    // 清掉旧会话（含调试「只回复OK」），只跳本轮 -p 新建的会话
+    setSharedAghSessionId(null)
+    setSharedAghUrl(null)
+    try {
+      sessionStorage.removeItem('eda-agh-session-id')
+      sessionStorage.removeItem('eda-agh-session-url')
+    } catch {
+      /* ignore */
+    }
     updateProject(projectId, (p) => ({
       ...p,
       auditStatus: 'auditing',
       aghMessage: undefined,
-      aghSessionId: seededId || p.aghSessionId,
-      aghUrl: seededUrl || p.aghUrl,
+      aghSessionId: undefined,
+      aghUrl: undefined,
+      aghPid: undefined,
       folderMarks: [],
       summary: undefined,
+      statementStatus: 'idle',
+      statementFileName: undefined,
     }))
     try {
       await apiCreateCase(projectId, active.name, active.batchLabel)
@@ -409,10 +454,8 @@ function App() {
       if (launch.sessionId) rememberSharedSession(launch.sessionId, launch.aghUrl)
       updateProject(projectId, (p) => ({
         ...p,
-        aghUrl: launch.sessionId
-          ? launch.aghUrl
-          : p.aghUrl || sharedAghUrl || launch.aghUrl,
-        aghSessionId: launch.sessionId || p.aghSessionId || sharedAghSessionId || undefined,
+        aghUrl: launch.sessionId ? launch.aghUrl : undefined,
+        aghSessionId: launch.sessionId || undefined,
         aghPid: launch.pid,
         aghMessage: launch.status === 'error' ? launch.message : undefined,
         auditStatus: launch.status === 'error' ? 'error' : 'auditing',
@@ -439,6 +482,7 @@ function App() {
   async function onCancelAudit() {
     if (!active) return
     stopPolling()
+    stopStatementPoll()
     setFindingsHint(null)
     auditLockRef.current = false
     const pid = active.aghPid
@@ -476,10 +520,13 @@ function App() {
     }
   }
 
-  // 切换工程时尝试从磁盘同步一次
+  // 切换工程时尝试从磁盘同步一次；已完成核查则轮询说明 Word
   useEffect(() => {
     if (!active) return
     void syncFromDisk(active.id, { keepAnnotations: true }).catch(() => undefined)
+    if (active.auditStatus === 'done' && active.statementStatus !== 'ready') {
+      startStatementPoll(active.id)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active?.id])
 
@@ -561,7 +608,7 @@ function App() {
               选择或新建工程批次
             </h2>
             <p style={{ color: 'var(--muted)', margin: '0 0 18px' }}>
-              上传文件落盘到 cases/&lt;id&gt;/files/；核查整段交给本机 AGH Agent。
+              上传文件并保存至本地目录 cases/&lt;id&gt;/files/
             </p>
             <button type="button" className="btn btn-primary" onClick={() => setShowNew(true)}>
               <Plus size={18} />

@@ -1,4 +1,13 @@
-import { Circle, ExternalLink, LoaderCircle, Play, RefreshCw, Sparkles } from 'lucide-react'
+import {
+  Circle,
+  Download,
+  ExternalLink,
+  LoaderCircle,
+  Play,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react'
+import { statementDownloadUrl } from '../lib/api'
 import type { Project } from '../types'
 import { auditStatusLabel } from './StatusBadge'
 
@@ -20,21 +29,27 @@ export function AuditPanel({
   onRefreshFindings?: () => void
   findingsHint?: string | null
   aghWebOrigin?: string
-  /** 进页预取的本机 AGH 会话，保证一点核查就能深链跳转 */
   sharedSessionId?: string | null
   sharedAghUrl?: string | null
 }) {
   const s = project.summary
   const busy = project.auditStatus === 'auditing'
   const home = (aghWebOrigin || DEFAULT_AGH_ORIGIN).replace(/\/$/, '')
-  const sessionId = project.aghSessionId || sharedSessionId || null
+  // 核查中只认本轮 session，禁止回落到共享/旧「只回复OK」会话
+  const sessionId = project.aghSessionId || (busy ? null : sharedSessionId) || null
   const jumpUrl = sessionId
     ? project.aghUrl ||
-      sharedAghUrl ||
+      (!busy ? sharedAghUrl : null) ||
       `${home}/?session=${encodeURIComponent(sessionId)}`
     : null
-  // 核查中/已完成：即使尚无 session，也给出入口（不再卡在「生成中」无按钮）
-  const openUrl = jumpUrl || (busy || project.auditStatus === 'done' ? home : null)
+  // 无本轮 session 时不给裸首页链接（首页会打开上次调试会话）
+  const openUrl = jumpUrl
+
+  const statementReady = project.statementStatus === 'ready'
+  const showStatement =
+    statementReady ||
+    project.statementStatus === 'waiting' ||
+    project.auditStatus === 'done'
 
   return (
     <div className="panel" style={{ animationDelay: '0.05s' }}>
@@ -108,8 +123,35 @@ export function AuditPanel({
               rel="noreferrer"
             >
               <ExternalLink size={18} />
-              {jumpUrl ? '在 AGH 网页查看运行过程' : '打开 AGH 网页'}
+              在 AGH 网页查看本轮核查
             </a>
+          )}
+
+          {busy && !openUrl && (
+            <button type="button" className="btn btn-copper" style={{ width: '100%' }} disabled>
+              <LoaderCircle className="spin" size={18} />
+              会话创建中，请稍候再打开 AGH…
+            </button>
+          )}
+
+          {showStatement && statementReady && (
+            <a
+              className="btn btn-copper"
+              style={{ width: '100%', textDecoration: 'none' }}
+              href={statementDownloadUrl(project.id)}
+              download={project.statementFileName || true}
+              title={project.statementFileName || '下载说明文件'}
+            >
+              <Download size={18} />
+              下载说明文件
+            </a>
+          )}
+
+          {showStatement && !statementReady && (
+            <button type="button" className="btn btn-copper" style={{ width: '100%' }} disabled>
+              <LoaderCircle className="spin" size={18} />
+              正在生成说明文件
+            </button>
           )}
 
           {onRefreshFindings && (busy || project.auditStatus === 'done') && (
