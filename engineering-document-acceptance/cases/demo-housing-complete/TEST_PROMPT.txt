@@ -1,0 +1,8 @@
+请使用 engineering-archive-audit 对 cases/demo-housing-complete 做工程验收资料材料齐全与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。
+
+核查完成后，必须使用 engineering-doc-generator：prepare → 撰写 `_work/正文.md` → build 导出 Word。
+build 时不要加 --out，使 docx 输出到 cases/demo-housing-complete/生成结果/。
+
+结论需覆盖：缺失文件、错传文件、文件中冲突字段、重复文件。
+
+工程名称：demo-housing-complete

@@ -1,0 +1,84 @@
+{
+  "project_id": "demo-housing-near-miss",
+  "rules_profile": "housing-construction",
+  "scoring_notes": {
+    "contrast_with": "demo-housing-mixed",
+    "difference": "本包侧重近邻工程名/编号混淆；另测开工日期冲突、缺材料检测、不可读扫描",
+    "misfiled_excluded_from_presence": "他项文件不得计入本项目材料齐全 provided；小学正式验收不得计为本项目 E-01",
+    "field_conflicts_in_project_only": "仅统计本工程真冲突；他项级联不得计为多条 FIELD",
+    "expected_field_conflict_count": 1,
+    "optional_codes": [
+      "B-02",
+      "G-02"
+    ],
+    "no_duplicate_file_no_test": "本包不测同编号重复（见 demo-housing-mixed）",
+    "form_style_note": "文种异构版式 + GB50300 附录；仍为合成数据"
+  },
+  "expected_highlights": {
+    "missing_required": [
+      {
+        "code": "D-01",
+        "name": "材料进场报审及复试报告",
+        "reason": "包内无可用材料复试正文；仅有不可读扫描占位"
+      },
+      {
+        "code": "E-01",
+        "name": "工程竣工验收报告",
+        "reason": "仅有预验收；小学正式验收属他项，不能替代",
+        "similar_files": [
+          "files/05-验收/工程竣工预验收报告.pdf"
+        ]
+      },
+      {
+        "code": "G-01",
+        "name": "消防验收意见或备案凭证",
+        "reason": "包内无消防验收/备案类文件"
+      }
+    ],
+    "field_conflicts": [
+      {
+        "field": "开工日期",
+        "canonical": "2024-05-08",
+        "conflict_value": "2024-04-01",
+        "source": "files/01-准备/A-02-建筑工程施工许可证.pdf"
+      }
+    ],
+    "suspect_misfiled": [
+      "files/01-准备/建设工程施工合同-教学楼单体.pdf",
+      "files/05-验收/工程竣工验收报告-学府路小学.pdf"
+    ],
+    "unreadable": [
+      {
+        "path": "files/04-检测/扫描件-页面损坏.pdf",
+        "status": "needs_human_review",
+        "reason": "无文本层/无法抽取正文"
+      }
+    ],
+    "should_be_provided_examples": [
+      "A-01",
+      "A-02",
+      "A-03",
+      "A-04",
+      "B-01",
+      "B-03",
+      "C-01",
+      "C-02",
+      "C-03",
+      "C-04",
+      "E-02",
+      "E-03",
+      "F-01",
+      "G-02"
+    ]
+  },
+  "agh_success_criteria": [
+    "加载 housing-construction 规则",
+    "写出 _work 产物",
+    "D-01 / E-01 / G-01 判 missing",
+    "E-01 不被学府路小学正式验收报告假阳性 provided",
+    "标出同校区教学楼合同与学府路小学验收为错传（靠项目名称，不靠错传目录）",
+    "标出本工程开工日期冲突（恰好 1 条 FIELD）",
+    "标出不可读扫描为 needs_human_review",
+    "可选：文书 prepare→正文→build"
+  ]
+}

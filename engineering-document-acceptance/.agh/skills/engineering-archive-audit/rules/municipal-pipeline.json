@@ -1,0 +1,32 @@
+{
+  "profile_id": "municipal-pipeline",
+  "project_type": "市政管线工程",
+  "version": "0.1.0",
+  "basis_note": "占位清单：结构已预留，条目待按市政管线/地下管线公开归档目录补全。加载本文件且清单不完备时，Agent 应在报告中声明规则未完备。",
+  "required_documents": [
+    {
+      "code": "MP-A-01",
+      "name": "施工合同",
+      "required": true,
+      "stage": "工程准备",
+      "category": "contract",
+      "aliases": ["建设工程施工合同"]
+    },
+    {
+      "code": "MP-E-01",
+      "name": "工程竣工验收报告",
+      "required": true,
+      "stage": "竣工验收",
+      "category": "completion_acceptance",
+      "aliases": ["竣工验收报告"]
+    },
+    {
+      "code": "MP-F-01",
+      "name": "竣工图",
+      "required": true,
+      "stage": "竣工图",
+      "category": "as_built_drawing",
+      "aliases": ["管线竣工图", "工程竣工图"]
+    }
+  ]
+}

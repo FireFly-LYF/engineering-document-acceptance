@@ -1,0 +1,31 @@
+{
+  "project_id": "demo-housing-near-miss",
+  "project_type": "房屋建筑工程",
+  "rules_profile": "housing-construction",
+  "project_name": "云港新区示范中学实验楼加固改造工程",
+  "project_code": "YG-XFZX-SY-2024-021",
+  "owner": "云港市教育发展建设中心",
+  "contractor": "江海建工集团有限公司",
+  "supervisor": "远洲建设监理有限公司",
+  "designer": "青城建筑设计研究院有限公司",
+  "address": "云港市海州区学府路92号",
+  "start_date": "2024-05-08",
+  "finish_date": "2025-12-15",
+  "contract_amount": "42800000",
+  "data_note": "近邻混淆演示包；文种异构版式参考公开空白样表与 GB50300 附录；非真实档案。",
+  "file_count": 18,
+  "file_format": "pdf",
+  "focus": [
+    "near_miss_misfile",
+    "start_date_conflict",
+    "missing_material_test",
+    "unreadable_scan"
+  ],
+  "form_reference": [
+    "reference/public-pdfs/gb50300-2013-acceptance-standard.pdf",
+    "reference/public-pdfs/acceptance-check-forms-unified.pdf",
+    "reference/public-pdfs/construction-permit-sample-sd.pdf",
+    "reference/public-pdfs/construction-contract-gf2017.pdf",
+    "reference/public-pdfs/unit-completion-acceptance-report.pdf"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "engineering-doc-generator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Evidence-driven engineering archive check statement generator (prepare + build)",
+  "scripts": {
+    "doc-prepare": "node scripts/generate.js prepare",
+    "doc-build": "node scripts/generate.js build"
+  },
+  "dependencies": {
+    "docx": "^9.7.1"
+  }
+}

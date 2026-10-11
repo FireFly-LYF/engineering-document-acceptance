@@ -1,0 +1,153 @@
+{
+  "profile_id": "housing-construction",
+  "project_type": "房屋建筑工程",
+  "version": "0.1.0",
+  "basis_note": "示例可配置清单，结构对齐常见地方「竣工验收技术资料/工程档案归档目录」与办事指南分类；非某一地市官方全文照录。实际项目请替换为本单位/当地约定目录。上位参考：住房城乡建设部《建设工程文件归档规范》及各地公开归档目录、空白样表。",
+  "required_documents": [
+    {
+      "code": "A-01",
+      "name": "建设工程规划许可证",
+      "required": true,
+      "stage": "工程准备",
+      "category": "preparation",
+      "aliases": ["规划许可证", "建设用地规划许可证"]
+    },
+    {
+      "code": "A-02",
+      "name": "施工许可证",
+      "required": true,
+      "stage": "工程准备",
+      "category": "preparation",
+      "aliases": ["建筑工程施工许可证", "开工证"]
+    },
+    {
+      "code": "A-03",
+      "name": "施工合同",
+      "required": true,
+      "stage": "工程准备",
+      "category": "contract",
+      "aliases": ["建设工程施工合同", "承包合同"]
+    },
+    {
+      "code": "A-04",
+      "name": "监理合同",
+      "required": true,
+      "stage": "工程准备",
+      "category": "contract",
+      "aliases": ["建设工程委托监理合同"]
+    },
+    {
+      "code": "B-01",
+      "name": "监理规划",
+      "required": true,
+      "stage": "监理",
+      "category": "supervision",
+      "aliases": ["监理规划书"]
+    },
+    {
+      "code": "B-02",
+      "name": "监理实施细则",
+      "required": false,
+      "stage": "监理",
+      "category": "supervision",
+      "aliases": ["专业监理实施细则"]
+    },
+    {
+      "code": "B-03",
+      "name": "监理评估报告",
+      "required": true,
+      "stage": "监理",
+      "category": "supervision",
+      "aliases": ["工程质量评估报告", "监理质量评估报告"]
+    },
+    {
+      "code": "C-01",
+      "name": "施工组织设计",
+      "required": true,
+      "stage": "施工",
+      "category": "construction",
+      "aliases": ["施工组织设计方案", "施组"]
+    },
+    {
+      "code": "C-02",
+      "name": "检验批质量验收记录",
+      "required": true,
+      "stage": "施工",
+      "category": "construction",
+      "aliases": ["检验批验收记录", "检验批"]
+    },
+    {
+      "code": "C-03",
+      "name": "分项工程质量验收记录",
+      "required": true,
+      "stage": "施工",
+      "category": "construction",
+      "aliases": ["分项工程验收记录"]
+    },
+    {
+      "code": "C-04",
+      "name": "分部工程质量验收记录",
+      "required": true,
+      "stage": "施工",
+      "category": "construction",
+      "aliases": ["分部工程验收记录"]
+    },
+    {
+      "code": "D-01",
+      "name": "材料进场报审及复试报告",
+      "required": true,
+      "stage": "材料检测",
+      "category": "material_test",
+      "aliases": ["材料复试报告", "进场验收记录", "检测报告"]
+    },
+    {
+      "code": "E-01",
+      "name": "工程竣工验收报告",
+      "required": true,
+      "stage": "竣工验收",
+      "category": "completion_acceptance",
+      "aliases": ["工程质量竣工验收报告", "竣工验收报告"],
+      "notes": "预验收报告、自检报告默认不能替代本项，除非项目清单明确允许。"
+    },
+    {
+      "code": "E-02",
+      "name": "施工单位工程竣工报告",
+      "required": true,
+      "stage": "竣工验收",
+      "category": "completion_acceptance",
+      "aliases": ["竣工报告", "施工竣工报告"]
+    },
+    {
+      "code": "E-03",
+      "name": "设计单位工程质量检查报告",
+      "required": true,
+      "stage": "竣工验收",
+      "category": "completion_acceptance",
+      "aliases": ["设计检查报告", "设计单位检查报告"]
+    },
+    {
+      "code": "F-01",
+      "name": "竣工图",
+      "required": true,
+      "stage": "竣工图",
+      "category": "as_built_drawing",
+      "aliases": ["工程竣工图", "建筑竣工图"]
+    },
+    {
+      "code": "G-01",
+      "name": "消防验收意见或备案凭证",
+      "required": true,
+      "stage": "专项验收",
+      "category": "special_acceptance",
+      "aliases": ["消防验收", "消防备案", "建设工程消防验收意见书"]
+    },
+    {
+      "code": "G-02",
+      "name": "规划核实证明",
+      "required": false,
+      "stage": "专项验收",
+      "category": "special_acceptance",
+      "aliases": ["规划核实", "建设工程规划核实合格证"]
+    }
+  ]
+}

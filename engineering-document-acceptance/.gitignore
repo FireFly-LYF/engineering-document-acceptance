@@ -1,0 +1,41 @@
+# dependencies（lockfile 入库，便于新机器复现依赖）
+**/node_modules/
+
+# frontend build
+web/dist/
+
+# runtime case archives: keep only the three demo packages
+cases/*
+!cases/demo-housing-complete/
+!cases/demo-housing-mixed/
+!cases/demo-housing-near-miss/
+# still ignore generated work products inside demos
+cases/**/_work/
+cases/**/doc/
+生成结果/
+**/生成结果/
+
+# credentials and local env
+.env
+.env.local
+.env.*
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# logs / temp
+*.log
+*.tmp
+.dev-logs/
+_verify_utf8.txt
+FILE_LIST.txt

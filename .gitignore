@@ -1,0 +1,63 @@
+# --- dependencies ---
+**/node_modules/
+
+# --- build outputs (must rebuild on each machine) ---
+**/dist/
+**/dist-ssr/
+**/*.tsbuildinfo
+agnes-harness/packages/cli/dist/
+agnes-harness/packages/host/native/macos-process-identity
+agnes-harness/packages/host/native/macos-live-app-identity
+agnes-harness/packages/package-manager/bundled-plugins/document-reader/src/runtime/
+engineering-document-acceptance/web/dist/
+
+# --- runtime / local data ---
+**/.dev-logs/
+**/.agnes-tmp/
+**/.agnes-scratch/
+**/.agnes/
+# AGH 本地数据目录；EDA 的 skills 在 engineering-document-acceptance/.agh/ 必须入库
+agnes-harness/.agh/
+**/~/
+agnes-harness/.worktrees/
+agnes-harness/.codegraph/
+agnes-harness/.superpowers/
+agnes-harness/learn/
+agnes-harness/outputs/
+agnes-harness/spikes/
+agnes-harness/docs/task-records/
+engineering-document-acceptance/cases/*
+!engineering-document-acceptance/cases/demo-housing-complete/
+!engineering-document-acceptance/cases/demo-housing-mixed/
+!engineering-document-acceptance/cases/demo-housing-near-miss/
+engineering-document-acceptance/cases/**/_work/
+engineering-document-acceptance/cases/**/doc/
+**/生成结果/
+.windows-core-host-check.log
+
+# --- secrets / env ---
+.env
+.env.local
+.env.*
+!.env.example
+
+# --- python ---
+**/__pycache__/
+*.py[cod]
+**/.venv/
+**/venv/
+
+# --- logs / temp ---
+*.log
+*.tmp
+_verify_utf8.txt
+FILE_LIST.txt
+
+# --- OS / IDE ---
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+**/.claude/
+**/.cursor/
