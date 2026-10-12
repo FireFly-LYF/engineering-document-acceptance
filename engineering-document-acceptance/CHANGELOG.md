@@ -2,6 +2,23 @@
 
 每轮更新以独立提交追加到 `main`。已发布提交保留，版本 tag 指向对应快照。
 
+## v2.0.0-c2（未打 tag）
+
+- C2：R-001/R-002/R-003 字段适用范围与一致性；`field_consensus.json`；不适用 `applicable=false`。R-003 按适用文件有值覆盖率 `min_coverage`（默认 25%）决定是否互比。
+
+## v2.0.0-c1（未打 tag）
+
+- C1：PDF 全文逐页抽取字段候选（去掉只读前 2 页）；`fields.json` 含 candidates/summary，新增 `evidence.json`；同一字段多次出现全部保留。多格式不做，非 PDF 标 `UNSUPPORTED`。
+
+## v2.0.0-b2（未打 tag）
+
+- B2：选中主参考后仅从该文件按 `manifest_fields` 写入 `manifest.fields`（`value`/`page`/`evidence`）；缺值保持 null，禁止用其它文件补齐；任务 `project_name` 与 `fields.project_name` 分离。
+
+## v2.0.0-b1
+
+- B1 主参考选择：`audit_prepare` 按规则打分选主参考（尊重前端 `source=user`）；0 候选或同分并列 → `primary_reference: null` + `_work/primary_selection.json` + PRIMARY finding，早停正式核查。
+- 前端材料目录可「设为主参考」；核查面板展示主文件或「无主文件」；`PUT /api/cases/:id/primary-reference`。
+
 ## v1.1.6 2026-10-10
 
 - 新增前端框架 `web/`：用户→工程批次、ZIP/PDF/文件夹上传、核查后目录/文件打标（演示启发式，待接 audit_prepare）。

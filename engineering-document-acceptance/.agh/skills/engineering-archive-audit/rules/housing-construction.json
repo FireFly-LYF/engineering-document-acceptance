@@ -2,71 +2,84 @@
   "profile_id": "housing-construction",
   "project_type": "房屋建筑工程",
   "version": "0.2.0",
-  "basis_note": "示例可配置清单，结构对齐常见地方「竣工验收技术资料/工程档案归档目录」与办事指南分类；非某一地市官方全文照录。实际项目请替换为本单位/当地约定目录。上位参考：住房城乡建设部《建设工程文件归档规范》及各地公开归档目录、空白样表。V2.0：含 manifest_fields / primary_reference / required_documents / consistency_rules 四段。",
+  "basis_note": "示例可配置清单",
   "manifest_fields": [
     {
       "key": "project_name",
       "name": "项目名称",
       "type": "text",
       "required": true,
-      "aliases": ["工程名称", "建设项目名称"]
+      "aliases": ["工程名称", "建设项目名称"],
+      "consistency": "global",
+      "consistency_note": "工程身份：凡有文载项目名称的本工程文件均应与任务/manifest 一致"
     },
     {
       "key": "project_code",
       "name": "项目编号",
       "type": "identifier",
       "required": true,
-      "aliases": ["工程编号", "建设项目编号", "编号"]
+      "aliases": ["工程编号", "建设项目编号", "编号"],
+      "consistency": "global",
+      "consistency_note": "工程身份编号：有值文件全局应一致"
     },
     {
       "key": "owner",
       "name": "建设单位",
       "type": "organization",
-      "required": true
+      "required": true,
+      "consistency": "scoped"
     },
     {
       "key": "contractor",
       "name": "施工单位",
       "type": "organization",
-      "required": true
+      "required": true,
+      "consistency": "scoped"
     },
     {
       "key": "supervisor",
       "name": "监理单位",
       "type": "organization",
-      "required": true
+      "required": true,
+      "consistency": "scoped"
     },
     {
       "key": "designer",
       "name": "设计单位",
       "type": "organization",
-      "required": false
+      "required": false,
+      "consistency": "scoped"
     },
     {
       "key": "address",
       "name": "工程地址",
       "type": "text",
       "required": false,
-      "aliases": ["建设地点", "建设地址", "工程地点", "建设位置"]
+      "aliases": ["建设地点", "建设地址", "工程地点", "建设位置"],
+      "consistency": "scoped"
     },
     {
       "key": "start_date",
       "name": "开工日期",
       "type": "date",
-      "required": false
+      "required": false,
+      "consistency": "scoped"
     },
     {
       "key": "finish_date",
       "name": "竣工日期",
       "type": "date",
-      "required": false
+      "required": false,
+      "consistency": "scoped"
     },
     {
       "key": "contract_amount",
       "name": "合同金额",
       "type": "money",
       "required": false,
-      "aliases": ["签约合同价", "合同价格", "合同金额（元）"]
+      "aliases": ["签约合同价", "合同价格", "合同金额（元）"],
+      "consistency": "scoped",
+      "consistency_note": "仅在施工合同/竣工类等使用文件类别内与 manifest 或彼此比对；监理类不适用"
     }
   ],
   "primary_reference": {
@@ -226,27 +239,8 @@
       "rule_id": "R-001",
       "name": "字段适用范围",
       "type": "field_scope",
+      "note": "consistency=global 的字段不配 documents（全库有值即适用）；scoped 字段仅在下列使用文件类别中参与 R-002/R-003",
       "scopes": [
-        {
-          "field": "project_name",
-          "documents": [
-            "建筑工程施工许可证",
-            "施工许可证",
-            "施工合同",
-            "监理合同",
-            "施工单位工程竣工报告",
-            "工程竣工验收报告"
-          ]
-        },
-        {
-          "field": "project_code",
-          "documents": [
-            "建筑工程施工许可证",
-            "施工许可证",
-            "施工合同",
-            "工程竣工验收报告"
-          ]
-        },
         {
           "field": "owner",
           "documents": [
@@ -331,7 +325,7 @@
       "name": "无 manifest 值时的跨文件一致性",
       "type": "cross_file_consistency",
       "operator": "all_values_equal",
-      "min_values": 2,
+      "min_coverage": 0.25,
       "only_when_manifest_empty": true
     }
   ]

@@ -5,6 +5,7 @@ import {
   FolderPlus,
   MoreHorizontal,
   Pencil,
+  Star,
   Trash2,
   FolderInput,
 } from 'lucide-react'
@@ -15,8 +16,16 @@ import {
   listFolders,
   normalizePath,
 } from '../lib/files'
-import type { FolderMark, ProjectFile } from '../types'
+import type { FolderMark, PrimaryReference, ProjectFile } from '../types'
 import { StatusBadge } from './StatusBadge'
+
+/** 将主参考 file_id（含 files/ 前缀）与 ProjectFile.relativePath 对齐 */
+export function primaryFileRelPath(primary?: PrimaryReference | null): string | null {
+  if (!primary?.file_id) return null
+  let rel = primary.file_id.replace(/\\/g, '/')
+  if (rel.startsWith('files/')) rel = rel.slice('files/'.length)
+  return rel
+}
 
 type DialogState =
   | { kind: 'create-folder' }
@@ -30,24 +39,31 @@ export function FileTree({
   folderMarks,
   extraFolders = [],
   disabled,
+  primaryReference,
   onRenameFile,
   onMoveFile,
   onDeleteFile,
   onRenameFolder,
   onDeleteFolder,
   onCreateFolder,
+  onSetPrimary,
+  onClearPrimary,
 }: {
   files: ProjectFile[]
   folderMarks: FolderMark[]
   extraFolders?: string[]
   disabled?: boolean
+  primaryReference?: PrimaryReference | null
   onRenameFile: (fileId: string, newName: string) => void
   onMoveFile: (fileId: string, targetFolder: string) => void
   onDeleteFile: (fileId: string) => void
   onRenameFolder: (from: string, to: string) => void
   onDeleteFolder: (folder: string) => void
   onCreateFolder: (folder: string) => void
+  onSetPrimary?: (file: ProjectFile) => void
+  onClearPrimary?: () => void
 }) {
+  const primaryRel = primaryFileRelPath(primaryReference)
   const [dialog, setDialog] = useState<DialogState>(null)
   const [menuId, setMenuId] = useState<string | null>(null)
 
@@ -181,9 +197,11 @@ export function FileTree({
                   <div className="file-list" style={{ paddingLeft: 12 }}>
                     {list.map((f) => {
                       const fileMenu = `file:${f.id}`
+                      const isPrimary =
+                        primaryRel != null && f.relativePath.replace(/\\/g, '/') === primaryRel
                       return (
                         <div className="file-row" key={f.id} title={f.annotation?.reason}>
-                          <FileText size={16} color="#5c6d78" />
+                          <FileText size={16} color={isPrimary ? '#c4784a' : '#5c6d78'} />
                           <div style={{ minWidth: 0 }}>
                             <div className="title">
                               {f.annotation?.code ? `[${f.annotation.code}] ` : ''}
@@ -198,6 +216,11 @@ export function FileTree({
                             </div>
                           </div>
                           <div className="row-end">
+                            {isPrimary && (
+                              <span className="badge copper" title="主参考文件">
+                                主参考
+                              </span>
+                            )}
                             <StatusBadge status={f.annotation?.status} />
                             <div className="row-menu">
                               <button
@@ -213,6 +236,34 @@ export function FileTree({
                               </button>
                               {menuId === fileMenu && (
                                 <div className="menu-pop">
+                                  {onSetPrimary && !isPrimary && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setMenuId(null)
+                                        if (
+                                          window.confirm(
+                                            `将「${f.name}」设为主参考文件？\n请确保该文件内容正确，核查将以它为数据锚点。`,
+                                          )
+                                        ) {
+                                          onSetPrimary(f)
+                                        }
+                                      }}
+                                    >
+                                      <Star size={14} /> 设为主参考
+                                    </button>
+                                  )}
+                                  {onClearPrimary && isPrimary && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setMenuId(null)
+                                        onClearPrimary()
+                                      }}
+                                    >
+                                      <Star size={14} /> 取消主参考
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => {

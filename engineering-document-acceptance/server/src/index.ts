@@ -14,8 +14,11 @@ import {
   listExtraFolders,
   moveFileToFolder,
   readFindings,
+  readManifest,
+  readPrimarySelection,
   renameFolder,
   renamePath,
+  setPrimaryReference,
   updateCaseName,
   writeUpload,
 } from './cases.js'
@@ -75,6 +78,40 @@ app.patch('/api/cases/:id', async (req, res) => {
     const id = assertCaseId(req.params.id)
     const manifest = await updateCaseName(id, String(req.body?.name || ''))
     res.json({ ok: true, manifest })
+  } catch (e) {
+    sendError(res, e)
+  }
+})
+
+/** 用户设定/清空主参考文件；body: { relativePath: string | null } */
+app.put('/api/cases/:id/primary-reference', async (req, res) => {
+  try {
+    const id = assertCaseId(req.params.id)
+    const raw = req.body?.relativePath ?? req.body?.relative_path
+    const relativePath =
+      raw === null || raw === undefined || raw === ''
+        ? null
+        : String(raw)
+    const manifest = await setPrimaryReference(id, relativePath)
+    res.json({ ok: true, manifest, primary_reference: manifest.primary_reference ?? null })
+  } catch (e) {
+    sendError(res, e)
+  }
+})
+
+app.get('/api/cases/:id/manifest', async (req, res) => {
+  try {
+    const id = assertCaseId(req.params.id)
+    const manifest = await readManifest(id)
+    const primarySelection = await readPrimarySelection(id)
+    res.json({
+      ok: true,
+      manifest,
+      project_name: manifest.project_name || '',
+      project_name_source: manifest.project_name_source || null,
+      primary_reference: manifest.primary_reference ?? null,
+      primarySelection,
+    })
   } catch (e) {
     sendError(res, e)
   }
@@ -264,8 +301,12 @@ app.get('/api/cases/:id/audit/status', async (req, res) => {
 app.get('/api/cases/:id/findings', async (req, res) => {
   try {
     const id = assertCaseId(req.params.id)
-    const findings = await readFindings(id)
-    const sessionId = await readSessionFile(id)
+    const [findings, sessionId, manifest, primarySelection] = await Promise.all([
+      readFindings(id),
+      readSessionFile(id),
+      readManifest(id),
+      readPrimarySelection(id),
+    ])
     res.json({
       ready: Boolean(findings?.items),
       findings,
@@ -273,6 +314,14 @@ app.get('/api/cases/:id/findings', async (req, res) => {
       aghUrl: sessionId
         ? `${aghConfig().aghWebOrigin}/?session=${encodeURIComponent(sessionId)}`
         : aghConfig().aghWebOrigin + '/',
+      project_name: manifest.project_name || '',
+      project_name_source: manifest.project_name_source || null,
+      primary_reference: manifest.primary_reference ?? null,
+      primarySelection,
+      primary_status:
+        findings?.primary_status ||
+        primarySelection?.status ||
+        (manifest.primary_reference ? 'selected' : undefined),
     })
   } catch (e) {
     sendError(res, e)

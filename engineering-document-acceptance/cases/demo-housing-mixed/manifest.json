@@ -22,5 +22,64 @@
     "reference/public-pdfs/construction-contract-gf2017.pdf",
     "reference/public-pdfs/unit-completion-acceptance-report.pdf",
     "reference/public-pdfs/zj-unified-forms-2025.pdf"
-  ]
+  ],
+  "primary_reference": {
+    "file_id": "files/01-准备/A-02-建筑工程施工许可证.pdf",
+    "file_name": "A-02-建筑工程施工许可证.pdf",
+    "document_code": "A-02",
+    "source": "auto"
+  },
+  "fields": {
+    "project_name": {
+      "value": "云港新区示范中学教学楼改扩建工程",
+      "page": 1,
+      "evidence": "项目名称：云港新区示范中学教学楼改扩建工程"
+    },
+    "project_code": {
+      "value": "YG-XFZX-JL-2024-018",
+      "page": 1,
+      "evidence": "项目编号：YG-XFZX-JL-2024-018"
+    },
+    "owner": {
+      "value": "云港市教育发展建设中心",
+      "page": 1,
+      "evidence": "建设单位：云港市教育发展建设中心"
+    },
+    "contractor": {
+      "value": "江海建工集团有限公司",
+      "page": 1,
+      "evidence": "施工单位：江海建工集团有限公司"
+    },
+    "supervisor": {
+      "value": "远洲建设监理有限公司",
+      "page": 1,
+      "evidence": "监理单位：远洲建设监理有限公司"
+    },
+    "designer": {
+      "value": "青城建筑设计研究院有限公司",
+      "page": 1,
+      "evidence": "设计单位：青城建筑设计研究院有限公司"
+    },
+    "address": {
+      "value": "云港市海州区学府路88号",
+      "page": 1,
+      "evidence": "工程地址：云港市海州区学府路88号"
+    },
+    "start_date": {
+      "value": "2024-03-01",
+      "page": 1,
+      "evidence": "开工日期：2024-03-01"
+    },
+    "finish_date": {
+      "value": null,
+      "page": null,
+      "evidence": null
+    },
+    "contract_amount": {
+      "value": null,
+      "page": null,
+      "evidence": null
+    }
+  },
+  "project_name_source": "user"
 }

@@ -55,6 +55,24 @@ export interface AuditSummary {
   note?: string
 }
 
+/** 主参考文件（manifest.primary_reference） */
+export interface PrimaryReference {
+  file_id: string
+  file_name: string
+  document_code: string
+  source: 'user' | 'auto'
+}
+
+export type PrimarySelectionStatus = 'selected' | 'no_primary' | undefined
+
+export interface PrimarySelection {
+  status?: string
+  reason?: string
+  expected?: { code?: string; name?: string }
+  candidates?: Array<{ path?: string; filename?: string; score?: number }>
+  primary?: PrimaryReference | null
+}
+
 export interface Project {
   id: string
   userId: string
@@ -71,6 +89,11 @@ export interface Project {
   extraFolders?: string[]
   folderMarks: FolderMark[]
   summary?: AuditSummary
+  /** 当前主参考文件（用户指定或脚本自动选择） */
+  primaryReference?: PrimaryReference | null
+  /** prepare 选择结果：selected / no_primary */
+  primarySelectionStatus?: PrimarySelectionStatus
+  primarySelection?: PrimarySelection | null
   /** AGH 会话深链 */
   aghUrl?: string
   aghSessionId?: string

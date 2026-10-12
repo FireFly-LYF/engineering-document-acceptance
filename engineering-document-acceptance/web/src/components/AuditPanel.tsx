@@ -78,6 +78,44 @@ export function AuditPanel({
           </div>
         </div>
 
+        <div
+          style={{
+            margin: '0 0 12px',
+            padding: '10px 12px',
+            borderRadius: 8,
+            background: 'var(--surface-2, rgba(0,0,0,0.04))',
+            fontSize: '0.84rem',
+            lineHeight: 1.5,
+            color: 'var(--muted)',
+          }}
+        >
+          <div style={{ color: 'var(--text, inherit)', fontWeight: 600, marginBottom: 4 }}>
+            主参考文件
+          </div>
+          {project.primarySelectionStatus === 'no_primary' ? (
+            <span style={{ color: '#9a3d30' }}>
+              无主文件 — 需人工指定或补传后重跑；未生成正式核查结论。
+              {project.primarySelection?.reason
+                ? `（${project.primarySelection.reason}）`
+                : ''}
+            </span>
+          ) : project.primaryReference?.file_name ? (
+            <span>
+              {project.primaryReference.file_name}
+              {project.primaryReference.document_code
+                ? ` · ${project.primaryReference.document_code}`
+                : ''}
+              {project.primaryReference.source === 'user'
+                ? '（用户指定）'
+                : project.primaryReference.source === 'auto'
+                  ? '（自动选择）'
+                  : ''}
+            </span>
+          ) : (
+            <span>未指定。可在材料目录设为主参考，或由核查脚本自动选择。</span>
+          )}
+        </div>
+
         <p style={{ margin: '0 0 14px', color: 'var(--muted)', fontSize: '0.86rem', lineHeight: 1.55 }}>
           {project.auditStatus === 'done' && s?.note
             ? s.note
@@ -152,12 +190,20 @@ export function AuditPanel({
             </a>
           )}
 
-          {showStatement && !statementReady && (
+          {showStatement && !statementReady && project.statementStatus === 'waiting' && (
             <button type="button" className="btn btn-copper" style={{ width: '100%' }} disabled>
               <LoaderCircle className="spin" size={18} />
               正在生成说明文件
             </button>
           )}
+
+          {showStatement &&
+            !statementReady &&
+            project.statementStatus !== 'waiting' && (
+              <button type="button" className="btn btn-ghost dark" style={{ width: '100%' }} disabled>
+                尚未生成说明文件
+              </button>
+            )}
 
           {onRefreshFindings && (busy || project.auditStatus === 'done') && (
             <button

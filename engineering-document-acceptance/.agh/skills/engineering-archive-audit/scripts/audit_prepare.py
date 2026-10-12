@@ -46,7 +46,7 @@ FIELD_PATTERNS = [
     ("开工日期", re.compile(r"开工日期[：:]\s*(.+)")),
     ("竣工日期", re.compile(r"竣工日期[：:]\s*(.+)")),
     ("合同金额", re.compile(
-        r"(?:合同金额[（(]?元[）)]?|签约合同价|合同价格[（(]?元[）)]?)[：:]\s*([0-9.]+)"
+        r"(?:合同金额(?:[（(]?元[）)]?)?|签约合同价|合同价格(?:[（(]?元[）)]?)?)[：:]\s*([0-9.]+)"
     )),
     # 勿用裸「编号」：会误吃「项目编号：」。检验批等靠著录条「文件编号：」
     ("文件编号", re.compile(r"(?:文件编号|合同编号|报告编号|证号|图册编号)[：:]\s*(.+)")),
@@ -70,20 +70,38 @@ CATEGORY_KEYWORDS = [
 ]
 
 
-def read_pdf_text(path: Path, max_pages: int = 2) -> str:
+def iter_pdf_pages(path: Path):
+    """Yield (page_no_1based, text) for every page. Empty on open failure."""
     try:
         doc = fitz.open(path)
     except Exception:
-        return ""
-    parts: list[str] = []
+        return
     try:
         for i, page in enumerate(doc):
-            if i >= max_pages:
-                break
-            parts.append(page.get_text() or "")
+            yield i + 1, page.get_text() or ""
     finally:
         doc.close()
+
+
+def read_pdf_text(path: Path, max_pages: int | None = None) -> str:
+    """Read PDF text layer. Default: all pages (C1). Pass max_pages to cap."""
+    parts: list[str] = []
+    for i, (_page_no, text) in enumerate(iter_pdf_pages(path)):
+        if max_pages is not None and i >= max_pages:
+            break
+        parts.append(text)
     return "\n".join(parts)
+
+
+def pdf_page_count(path: Path) -> int:
+    try:
+        doc = fitz.open(path)
+    except Exception:
+        return 0
+    try:
+        return len(doc)
+    finally:
+        doc.close()
 
 
 def _clean_field_value(key: str, raw: str) -> str:
@@ -105,6 +123,7 @@ def _clean_field_value(key: str, raw: str) -> str:
 
 
 def extract_fields(text: str) -> dict[str, str]:
+    """First-hit flat map (Chinese name -> value). Prefer extract_field_candidates for C1."""
     out: dict[str, str] = {}
     for key, pat in FIELD_PATTERNS:
         m = pat.search(text)
@@ -113,6 +132,211 @@ def extract_fields(text: str) -> dict[str, str]:
         val = _clean_field_value(key, m.group(1))
         if val and not re.search(r"暂缺|待填写|示例|XXXX", val, re.I):
             out[key] = val
+    return out
+
+
+def _evidence_line(text: str, match: re.Match[str]) -> str:
+    line_start = text.rfind("\n", 0, match.start()) + 1
+    line_end = text.find("\n", match.end())
+    if line_end < 0:
+        line_end = min(len(text), match.end() + 48)
+    evidence = re.sub(r"\s+", " ", text[line_start:line_end].strip())[:160]
+    return evidence
+
+
+def manifest_name_to_key(rules: dict) -> dict[str, str]:
+    """Chinese name/alias -> English field_key from rules.manifest_fields."""
+    mapping: dict[str, str] = {}
+    for field in rules.get("manifest_fields") or []:
+        if not isinstance(field, dict):
+            continue
+        key = str(field.get("key") or "").strip()
+        if not key:
+            continue
+        name = str(field.get("name") or "").strip()
+        if name:
+            mapping[name] = key
+        for alias in field.get("aliases") or []:
+            a = str(alias).strip()
+            if a and a != "编号":
+                mapping[a] = key
+    return mapping
+
+
+def extract_field_candidates(
+    pages: list[tuple[int, str]],
+    name_to_key: dict[str, str] | None = None,
+) -> list[dict]:
+    """C1: page-level candidates; keep every occurrence of each field.
+
+    Each item: field_key / value / page / evidence / source / confidence
+    (+ name Chinese label, bbox null this round).
+    """
+    name_to_key = name_to_key or {}
+    candidates: list[dict] = []
+    for page_no, text in pages:
+        if not text or not text.strip():
+            continue
+        for name_zh, pat in FIELD_PATTERNS:
+            for m in pat.finditer(text):
+                val = _clean_field_value(name_zh, m.group(1))
+                if not val or re.search(r"暂缺|待填写|示例|XXXX", val, re.I):
+                    continue
+                evidence = _evidence_line(text, m) or f"{name_zh}：{val}"
+                field_key = name_to_key.get(name_zh, name_zh)
+                # 文本层命中：较高置信；页首区略高
+                confidence = 0.92 if m.start() < 400 else 0.8
+                candidates.append(
+                    {
+                        "field_key": field_key,
+                        "name": name_zh,
+                        "value": val,
+                        "page": page_no,
+                        "evidence": evidence,
+                        "source": "native_pdf_text",
+                        "confidence": confidence,
+                        "bbox": None,
+                    }
+                )
+    return candidates
+
+
+def candidates_to_summary(candidates: list[dict]) -> dict[str, str]:
+    """First value per Chinese field name (legacy flat map for consensus/misfile)."""
+    summary: dict[str, str] = {}
+    for c in candidates:
+        name = c.get("name") or c.get("field_key")
+        if not name or name in summary:
+            continue
+        val = c.get("value")
+        if val:
+            summary[str(name)] = str(val)
+    return summary
+
+
+def _null_manifest_field() -> dict:
+    return {"value": None, "page": None, "evidence": None}
+
+
+def empty_manifest_fields(rules: dict) -> dict[str, dict]:
+    """Skeleton for all manifest_fields keys (null values)."""
+    out: dict[str, dict] = {}
+    for field in rules.get("manifest_fields") or []:
+        if not isinstance(field, dict):
+            continue
+        key = field.get("key")
+        if key:
+            out[str(key)] = _null_manifest_field()
+    return out
+
+
+def build_field_extractors(manifest_fields: list) -> list[tuple[str, str, re.Pattern[str]]]:
+    """Build (field_key, name_zh, pattern) from rules.manifest_fields."""
+    extractors: list[tuple[str, str, re.Pattern[str]]] = []
+    for field in manifest_fields or []:
+        if not isinstance(field, dict):
+            continue
+        key = str(field.get("key") or "").strip()
+        name_zh = str(field.get("name") or "").strip()
+        aliases = [str(a).strip() for a in (field.get("aliases") or []) if str(a).strip()]
+        labels: list[str] = []
+        for lab in [name_zh, *aliases]:
+            # 裸「编号」易误吃其它著录项，跳过；identifier 另加「证号」
+            if not lab or lab == "编号":
+                continue
+            if lab not in labels:
+                labels.append(lab)
+        if field.get("type") == "identifier" and "证号" not in labels:
+            labels.append("证号")
+        if not key or not labels:
+            continue
+        alt = "|".join(re.escape(lab) for lab in labels)
+        if field.get("type") == "money":
+            pat = re.compile(rf"(?:{alt})[：:]\s*([0-9.]+)")
+        else:
+            pat = re.compile(rf"(?:{alt})[：:]\s*(.+)")
+        extractors.append((key, name_zh or key, pat))
+    return extractors
+
+
+def extract_fields_from_primary_pdf(
+    path: Path,
+    extractors: list[tuple[str, str, re.Pattern[str]]],
+) -> dict[str, dict]:
+    """Page-aware extract from one PDF. First hit per field wins. Keys = English field keys."""
+    hits: dict[str, dict] = {}
+    if not extractors or not path.is_file():
+        return hits
+    try:
+        doc = fitz.open(path)
+    except Exception:
+        return hits
+    try:
+        for i, page in enumerate(doc):
+            text = page.get_text() or ""
+            if not text.strip():
+                continue
+            page_no = i + 1
+            for key, name_zh, pat in extractors:
+                if key in hits:
+                    continue
+                m = pat.search(text)
+                if not m:
+                    continue
+                val = _clean_field_value(name_zh, m.group(1))
+                if not val or re.search(r"暂缺|待填写|示例|XXXX", val, re.I):
+                    continue
+                line_start = text.rfind("\n", 0, m.start()) + 1
+                line_end = text.find("\n", m.end())
+                if line_end < 0:
+                    line_end = min(len(text), m.end() + 48)
+                evidence = re.sub(r"\s+", " ", text[line_start:line_end].strip())[:160]
+                if not evidence:
+                    evidence = f"{name_zh}：{val}"
+                hits[key] = {
+                    "value": val,
+                    "page": page_no,
+                    "evidence": evidence,
+                }
+    finally:
+        doc.close()
+    return hits
+
+
+def resolve_primary_file_path(case_dir: Path, primary: dict) -> Path | None:
+    file_id = str(primary.get("file_id") or "").replace("\\", "/").lstrip("/")
+    if not file_id:
+        return None
+    candidates = [
+        case_dir / file_id,
+        case_dir / "files" / file_id.removeprefix("files/"),
+    ]
+    for cand in candidates:
+        if cand.is_file():
+            return cand
+    return None
+
+
+def build_manifest_fields(
+    rules: dict,
+    case_dir: Path,
+    primary: dict | None,
+) -> dict[str, dict]:
+    """B2: fill manifest.fields only from primary reference file.
+
+    Missing values stay null. Never backfill from other files.
+    """
+    out = empty_manifest_fields(rules)
+    if not primary:
+        return out
+    path = resolve_primary_file_path(case_dir, primary)
+    if path is None or path.suffix.lower() != ".pdf":
+        return out
+    extractors = build_field_extractors(rules.get("manifest_fields") or [])
+    hits = extract_fields_from_primary_pdf(path, extractors)
+    for key, cell in hits.items():
+        if key in out:
+            out[key] = cell
     return out
 
 
@@ -201,6 +425,307 @@ def match_required(doc: dict, file_rows: list[dict]) -> dict:
     return {"candidates": candidates, "best": candidates[0] if candidates else None}
 
 
+def _primary_doc_def(rules: dict) -> dict:
+    """Merge rules.primary_reference with matching required_documents entry (category)."""
+    pref = rules.get("primary_reference") or {}
+    code = str(pref.get("code") or "")
+    name = str(pref.get("name") or "")
+    aliases = list(pref.get("aliases") or [])
+    category = None
+    for doc in rules.get("required_documents") or []:
+        if not isinstance(doc, dict):
+            continue
+        if doc.get("code") == code or doc.get("name") == name:
+            category = doc.get("category")
+            for a in doc.get("aliases") or []:
+                if a and a not in aliases:
+                    aliases.append(a)
+            break
+    return {
+        "code": code,
+        "name": name,
+        "aliases": aliases,
+        "category": category,
+    }
+
+
+def _score_primary_candidate(
+    row: dict,
+    doc: dict,
+    project_name: str,
+) -> tuple[int, list[str]]:
+    """Score one file as primary-reference candidate. Unreadable files get 0."""
+    if row.get("unreadable") or row.get("misfiled"):
+        return 0, []
+    names = [doc.get("name") or "", *(doc.get("aliases") or [])]
+    names = [n for n in names if n]
+    score = 0
+    reasons: list[str] = []
+    fname = row.get("filename") or ""
+    text = (row.get("text_head") or "")[:800]
+    for n in names:
+        if n in fname:
+            score += 5
+            reasons.append(f"文件名含「{n}」")
+        elif n in text:
+            score += 3
+            reasons.append(f"正文含「{n}」")
+    if doc.get("category") and row.get("category") == doc["category"]:
+        score += 2
+        reasons.append("分类一致")
+    proj = str((row.get("fields") or {}).get("项目名称") or "").strip()
+    anchor = (project_name or "").strip()
+    if proj and anchor and not is_weak_project_name(anchor) and proj == anchor:
+        score += 2
+        reasons.append("项目名称一致")
+    if score > 0 and not row.get("unreadable"):
+        score += 1
+        reasons.append("可读文本")
+    return score, reasons
+
+
+def select_primary_reference(
+    rules: dict,
+    file_rows: list[dict],
+    manifest: dict,
+) -> dict:
+    """Select primary reference file.
+
+    Returns:
+      {
+        status: "selected" | "no_primary",
+        reason?: "zero_candidates" | "ambiguous_tie" | "user_missing",
+        primary?: {file_id, file_name, document_code, source},
+        expected: {code, name},
+        candidates: [{path, filename, score, reasons}],
+      }
+    """
+    doc = _primary_doc_def(rules)
+    expected = {"code": doc["code"], "name": doc["name"]}
+    project_name = str(manifest.get("project_name") or "")
+
+    # User pre-selection: trust if file still exists
+    existing = manifest.get("primary_reference")
+    if isinstance(existing, dict) and existing.get("source") == "user":
+        file_id = str(existing.get("file_id") or "").replace("\\", "/")
+        by_path = {r["rel_path"].replace("\\", "/"): r for r in file_rows}
+        row = by_path.get(file_id)
+        if not row and file_id.startswith("files/"):
+            # also try bare path under files/
+            bare = file_id[len("files/") :]
+            for r in file_rows:
+                rel = r["rel_path"].replace("\\", "/")
+                if rel == bare or rel.endswith("/" + bare) or rel == "files/" + bare:
+                    row = r
+                    break
+        if not row and file_id and not file_id.startswith("files/"):
+            row = by_path.get("files/" + file_id)
+        if row:
+            primary = {
+                "file_id": row["rel_path"],
+                "file_name": row["filename"],
+                "document_code": doc["code"] or str(existing.get("document_code") or ""),
+                "source": "user",
+            }
+            return {
+                "status": "selected",
+                "primary": primary,
+                "expected": expected,
+                "candidates": [
+                    {
+                        "path": row["rel_path"],
+                        "filename": row["filename"],
+                        "score": 999,
+                        "reasons": ["用户指定主参考"],
+                    }
+                ],
+            }
+        return {
+            "status": "no_primary",
+            "reason": "user_missing",
+            "expected": expected,
+            "candidates": [],
+        }
+
+    scored: list[dict] = []
+    for row in file_rows:
+        score, reasons = _score_primary_candidate(row, doc, project_name)
+        if score > 0:
+            scored.append(
+                {
+                    "path": row["rel_path"],
+                    "filename": row["filename"],
+                    "score": score,
+                    "reasons": reasons,
+                    "_row": row,
+                }
+            )
+    scored.sort(key=lambda x: (-x["score"], x["filename"]))
+    candidates_out = [
+        {
+            "path": c["path"],
+            "filename": c["filename"],
+            "score": c["score"],
+            "reasons": c["reasons"],
+        }
+        for c in scored
+    ]
+
+    if not scored:
+        return {
+            "status": "no_primary",
+            "reason": "zero_candidates",
+            "expected": expected,
+            "candidates": [],
+        }
+
+    top = scored[0]["score"]
+    tied = [c for c in scored if c["score"] == top]
+    if len(tied) > 1:
+        return {
+            "status": "no_primary",
+            "reason": "ambiguous_tie",
+            "expected": expected,
+            "candidates": candidates_out,
+        }
+
+    row = tied[0]["_row"]
+    return {
+        "status": "selected",
+        "primary": {
+            "file_id": row["rel_path"],
+            "file_name": row["filename"],
+            "document_code": doc["code"],
+            "source": "auto",
+        },
+        "expected": expected,
+        "candidates": candidates_out,
+    }
+
+
+def write_manifest_primary(
+    case_dir: Path,
+    manifest: dict,
+    primary: dict | None,
+    fields: dict | None = None,
+) -> dict:
+    """Persist primary_reference and optional fields. Does not touch task project_name."""
+    manifest["primary_reference"] = primary
+    if fields is not None:
+        manifest["fields"] = fields
+    elif "fields" not in manifest or not isinstance(manifest.get("fields"), dict):
+        manifest["fields"] = {}
+    manifest_path = case_dir / "manifest.json"
+    try:
+        manifest_path.write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    except OSError:
+        pass
+    return manifest
+
+
+def primary_failure_finding(selection: dict) -> dict:
+    expected = selection.get("expected") or {}
+    code = expected.get("code") or "?"
+    name = expected.get("name") or "主参考文件"
+    reason_key = selection.get("reason") or "zero_candidates"
+    cand = selection.get("candidates") or []
+    if reason_key == "ambiguous_tie":
+        detail = (
+            f"找到 {len(cand)} 个同分候选，无法自动区分主参考"
+            f"（期望 {code}《{name}》）；请在前端指定主文件后重跑"
+        )
+        suggestion = "在材料目录中指定唯一主参考文件，并确保内容正确"
+    elif reason_key == "user_missing":
+        detail = "用户指定的主参考文件已不存在或路径无效"
+        suggestion = "重新指定主参考文件或补传后重跑核查"
+    else:
+        detail = (
+            f"未找到主参考文件（期望 {code}《{name}》）；"
+            "无主文件，不能生成正式核查结论"
+        )
+        suggestion = f"补传《{name}》或在前端手动指定主参考后重跑"
+    return {
+        "code": "PRIMARY",
+        "name": f"主参考文件 · {name}",
+        "status": "needs_human_review",
+        "severity": "error",
+        "reason": detail,
+        "suggestion": suggestion,
+        "primary_selection": {
+            "status": "no_primary",
+            "reason": reason_key,
+            "candidates": [
+                {"path": c.get("path"), "filename": c.get("filename"), "score": c.get("score")}
+                for c in cand[:10]
+            ],
+        },
+    }
+
+
+def write_no_primary_report(
+    path: Path,
+    manifest: dict,
+    rules: dict,
+    inventory: dict,
+    selection: dict,
+) -> None:
+    expected = selection.get("expected") or {}
+    finding = primary_failure_finding(selection)
+    lines = [
+        "# 竣工资料完整性与一致性核查报告（脚本初稿）",
+        "",
+        f"- 项目：{manifest.get('project_name', '')} / {manifest.get('project_id', '')}",
+        f"- 规则模板：{rules.get('profile_id')} · {rules.get('project_type')}",
+        f"- 已检索文件：{inventory.get('count', 0)} 份",
+        f"- 生成时间：{datetime.now(timezone.utc).isoformat()}",
+        f"- **任务状态：无主文件 — 需人工复核，未生成正式核查结论**",
+        "",
+        "## 主参考选择失败",
+        "",
+        f"- 期望：{expected.get('code')}《{expected.get('name')}》",
+        f"- 原因：{finding.get('reason')}",
+        f"- 建议：{finding.get('suggestion')}",
+        "",
+        "本任务**不能**宣称核查通过。请指定或补传主参考文件后重新核查。",
+        "",
+        "## 候选列表",
+        "",
+    ]
+    cands = selection.get("candidates") or []
+    if not cands:
+        lines.append("- （无候选）")
+    else:
+        for c in cands:
+            lines.append(
+                f"- {c.get('filename')}（score={c.get('score')}）"
+                f"：{'；'.join(c.get('reasons') or [])}"
+            )
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def write_no_primary_brief(path: Path, selection: dict) -> None:
+    finding = primary_failure_finding(selection)
+    lines = [
+        "# 竣工资料核查简报（优先读此文件，勿通读全部 PDF）",
+        "",
+        "## 请你做的事",
+        "1. **停止正式核查**：当前无主参考文件，不要宣称核查通过",
+        "2. 告知用户在前端指定主文件或补传主参考后重跑",
+        "3. 不要强行生成「通过」类情况说明文书",
+        "",
+        "## 主参考选择",
+        f"- 状态：无主文件（{selection.get('reason')}）",
+        f"- 判断：{finding.get('reason')}",
+        f"- 建议：{finding.get('suggestion')}",
+        "",
+    ]
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def is_pre_acceptance(name: str, text: str) -> bool:
     blob = name + text[:500]
     return "预验收" in blob and "竣工验收报告" in blob or (
@@ -241,14 +766,38 @@ def anchor_from_manifest(manifest: dict) -> dict[str, str]:
 
 
 _DOC_LIKE_NAME = re.compile(
-    r"^[A-G]-\d{2}\b|未命名工程|许可|合同|报告|证明|记录|细则|报审|验收|竣工图|建设工程|监理规划|施工组织"
+    r"^[A-G]-\d{2}\b|未命名工程|许可|合同|报告|证明|记录|细则|报审|验收|竣工图|监理规划|施工组织"
 )
+
+# 用户未认真填写时的占位名；过短名称也视为弱名
+_WEAK_EXACT = {
+    "未命名工程",
+    "unnamed",
+    "unknown",
+    "工程",
+    "项目",
+    "某某工程",
+    "测试",
+    "测试工程",
+    "demo",
+    "test",
+    "项目名称",
+    "暂定",
+    "待定",
+    "新建工程",
+    "本工程",
+}
 
 
 def is_weak_project_name(name: str) -> bool:
     """Placeholder / document-title names must not be used as misfile anchors."""
     n = (name or "").strip()
-    if not n or n in {"未命名工程", "unnamed", "unknown"}:
+    if not n:
+        return True
+    if n in _WEAK_EXACT or n.lower() in _WEAK_EXACT:
+        return True
+    # 「工程」「XX」等过短占位，真实工程名通常更长
+    if len(n) <= 3:
         return True
     if _DOC_LIKE_NAME.search(n):
         return True
@@ -425,19 +974,30 @@ def build_findings(rules: dict, file_rows: list[dict], consensus: dict) -> list[
             }
         )
 
-    # unreadable / empty-text PDFs among in-project files
+    # unreadable / unsupported / empty-text among in-project files
     for row in target_rows:
-        if not row.get("unreadable"):
+        if not row.get("unreadable") and not row.get("unsupported_format"):
             continue
+        if row.get("unsupported_format"):
+            reason = (
+                f"仅支持 PDF 文本层，不处理「{row.get('ext') or '未知'}」等格式；"
+                "不能据此认定已提供对应资料"
+            )
+            suggestion = "请转为可检索 PDF 后重新核查"
+            code = "UNSUPPORTED"
+        else:
+            reason = "未能抽取可读正文，不能据此认定已提供对应资料"
+            suggestion = "重新上传 PDF "
+            code = "UNREADABLE"
         findings.append(
             {
-                "code": "UNREADABLE",
+                "code": code,
                 "name": row["filename"],
                 "status": "needs_human_review",
                 "severity": "warning",
-                "reason": "未能抽取可读正文（空文本层或损坏扫描），读取不足，不能据此认定已提供对应资料",
+                "reason": reason,
                 "matched_file": row["rel_path"],
-                "suggestion": "补传可检索文本版或清晰扫描后重跑核查",
+                "suggestion": suggestion,
             }
         )
 
@@ -479,7 +1039,7 @@ def build_consensus(
     fields_by_file: dict[str, dict],
     misfiled_paths: set[str] | None = None,
 ) -> dict:
-    # 文件编号天然每份不同；错传文件不参与本工程字段共识
+    """Legacy flat Chinese-key consensus (kept for brief fallback). Prefer build_field_consistency."""
     skip_conflict_fields = {"文件编号"}
     misfiled_paths = misfiled_paths or set()
     buckets: dict[str, dict[str, list[str]]] = defaultdict(lambda: defaultdict(list))
@@ -521,6 +1081,390 @@ def build_consensus(
         ],
         "excluded_misfiled": sorted(misfiled_paths),
         "note": "错传/他项文件已排除出字段共识；级联差异不计入本工程 FIELD",
+    }
+
+
+def _field_defs_by_key(rules: dict) -> dict[str, dict]:
+    out: dict[str, dict] = {}
+    for field in rules.get("manifest_fields") or []:
+        if isinstance(field, dict) and field.get("key"):
+            out[str(field["key"])] = field
+    return out
+
+
+def _r001_scope_map(rules: dict) -> dict[str, list[str]]:
+    """field_key -> list of document names for scoped fields."""
+    for rule in rules.get("consistency_rules") or []:
+        if isinstance(rule, dict) and rule.get("type") == "field_scope":
+            mapping: dict[str, list[str]] = {}
+            for scope in rule.get("scopes") or []:
+                if not isinstance(scope, dict):
+                    continue
+                fk = str(scope.get("field") or "").strip()
+                docs = [str(d) for d in (scope.get("documents") or []) if d]
+                if fk:
+                    mapping[fk] = docs
+            return mapping
+    return {}
+
+
+def _r003_min_coverage(rules: dict) -> float:
+    """R-003: fraction of applicable files that must have a value before cross-compare.
+
+    Reads ``min_coverage`` / ``min_coverage_ratio`` (0–1 or percent >1). Default 0.25.
+    """
+    for rule in rules.get("consistency_rules") or []:
+        if isinstance(rule, dict) and rule.get("type") == "cross_file_consistency":
+            raw = rule.get("min_coverage", rule.get("min_coverage_ratio"))
+            if raw is None:
+                return 0.25
+            try:
+                v = float(raw)
+            except (TypeError, ValueError):
+                return 0.25
+            if v > 1.0:
+                v = v / 100.0
+            return min(1.0, max(0.0, v))
+    return 0.25
+
+
+def _docs_for_scope_names(rules: dict, names: list[str]) -> list[dict]:
+    """Map scope document display names to required_documents entries (with aliases)."""
+    by_label: dict[str, dict] = {}
+    for doc in rules.get("required_documents") or []:
+        if not isinstance(doc, dict):
+            continue
+        for lab in [doc.get("name"), *(doc.get("aliases") or [])]:
+            if lab:
+                by_label[str(lab)] = doc
+    out: list[dict] = []
+    seen: set[str] = set()
+    for name in names:
+        doc = by_label.get(name)
+        if doc:
+            code = str(doc.get("code") or doc.get("name") or name)
+            if code in seen:
+                continue
+            seen.add(code)
+            out.append(doc)
+        else:
+            out.append({"code": name, "name": name, "aliases": []})
+    return out
+
+
+_LAYOUT_REF_NOISE = re.compile(
+    r"[（(]?版式参考[^）)\n]{0,40}[）)]?"
+)
+
+
+def _doc_name_in_text(name: str, text: str) -> bool:
+    """Document title hit in body; reject compound false friends like 施工合同价."""
+    if not name or not text:
+        return False
+    return re.search(re.escape(name) + r"(?![价金额款额])", text) is not None
+
+
+def file_matches_scope_docs(row: dict, docs: list[dict], min_score: int = 3) -> bool:
+    """True if file name/text hits any scoped document name/alias.
+
+    Category alone must not qualify. Body match strips 「版式参考…」脚注，
+    and rejects 「施工合同价」类子串误命中。
+    """
+    if not docs:
+        return False
+    fname = row.get("filename") or ""
+    text = _LAYOUT_REF_NOISE.sub("", (row.get("text_head") or "")[:800])
+    for doc in docs:
+        names = [doc.get("name") or "", *(doc.get("aliases") or [])]
+        names = [n for n in names if n]
+        name_score = 0
+        for n in names:
+            if n in fname:
+                name_score += 5
+            elif _doc_name_in_text(n, text):
+                name_score += 3
+        if name_score <= 0:
+            continue
+        score = name_score
+        if doc.get("category") and row.get("category") == doc.get("category"):
+            score += 1
+        if score >= min_score:
+            return True
+    return False
+
+
+def normalize_compare_value(field_def: dict, value: object) -> str | None:
+    if value is None:
+        return None
+    v = str(value).strip()
+    if not v or v in {"（本文件未载明）", "暂缺", "待填写"}:
+        return None
+    ftype = field_def.get("type")
+    if ftype == "money":
+        v = re.sub(r"[,，\s元整]", "", v)
+    elif ftype == "date":
+        v = v.replace("年", "-").replace("月", "-").replace("日", "")
+        v = re.sub(r"[-./]+", "-", v).strip("-")
+    return v
+
+
+def extract_row_field_hit(row: dict, field_key: str, name_zh: str) -> dict | None:
+    """Best candidate for field on this file (first by page then appearance)."""
+    for c in row.get("candidates") or []:
+        if c.get("field_key") == field_key or c.get("name") == name_zh:
+            return c
+    summary = row.get("fields") or {}
+    if name_zh in summary and summary[name_zh]:
+        return {
+            "field_key": field_key,
+            "name": name_zh,
+            "value": summary[name_zh],
+            "page": None,
+            "evidence": None,
+        }
+    return None
+
+
+def manifest_field_value(manifest: dict, field_key: str) -> object:
+    fields = manifest.get("fields")
+    if isinstance(fields, dict) and isinstance(fields.get(field_key), dict):
+        return fields[field_key].get("value")
+    # legacy top-level keys (demo packs)
+    legacy = {
+        "project_name": "project_name",
+        "project_code": "project_code",
+        "owner": "owner",
+        "contractor": "contractor",
+        "supervisor": "supervisor",
+        "designer": "designer",
+        "address": "address",
+        "start_date": "start_date",
+        "finish_date": "finish_date",
+        "contract_amount": "contract_amount",
+    }
+    top = legacy.get(field_key)
+    if top and manifest.get(top):
+        return manifest.get(top)
+    return None
+
+
+def build_field_consistency(
+    rules: dict,
+    manifest: dict,
+    file_rows: list[dict],
+    misfiled_paths: set[str] | None = None,
+) -> dict:
+    """C2: R-001 scope + R-002 manifest consistency + R-003 cross-file.
+
+    global fields: all in-project files with a value are applicable.
+    scoped fields: only files matching R-001 documents list.
+    """
+    misfiled_paths = misfiled_paths or set()
+    field_defs = _field_defs_by_key(rules)
+    scope_map = _r001_scope_map(rules)
+    min_coverage = _r003_min_coverage(rules)
+    coverage_pct = int(round(min_coverage * 100))
+    target_rows = [r for r in file_rows if r["rel_path"] not in misfiled_paths]
+
+    field_results: list[dict] = []
+    rule_findings: list[dict] = []
+    legacy_conflicts: dict[str, dict] = {}
+
+    for field_key, field_def in field_defs.items():
+        name_zh = str(field_def.get("name") or field_key)
+        consistency = str(field_def.get("consistency") or "scoped").lower()
+        if consistency not in {"global", "scoped"}:
+            consistency = "scoped"
+
+        scope_docs = _docs_for_scope_names(rules, scope_map.get(field_key) or [])
+        values_by_file: list[dict] = []
+        applicable_values: list[tuple[str, str, dict]] = []  # norm, raw, row_meta
+
+        for row in target_rows:
+            rel = row["rel_path"]
+            fname = row["filename"]
+            if consistency == "global":
+                applicable = True
+                reason_na = None
+            else:
+                if not scope_docs:
+                    applicable = False
+                    reason_na = "规则未配置该字段的使用文件类别"
+                elif file_matches_scope_docs(row, scope_docs):
+                    applicable = True
+                    reason_na = None
+                else:
+                    applicable = False
+                    reason_na = "该字段不属于此类文件"
+
+            hit = extract_row_field_hit(row, field_key, name_zh)
+            raw_val = hit.get("value") if hit else None
+            norm = normalize_compare_value(field_def, raw_val)
+
+            entry: dict = {
+                "file_id": rel,
+                "file_name": fname,
+                "value": raw_val if applicable else None,
+                "page": hit.get("page") if hit and applicable else None,
+                "evidence": hit.get("evidence") if hit and applicable else None,
+                "applicable": applicable,
+            }
+            if not applicable:
+                entry["reason"] = reason_na
+                # 范围外若抽出值，仅观察，不参与比较
+                if norm:
+                    entry["out_of_scope_value"] = raw_val
+            elif norm:
+                entry["status"] = "provided"
+                applicable_values.append((norm, str(raw_val), entry))
+            else:
+                entry["status"] = "missing"
+            values_by_file.append(entry)
+
+        manifest_raw = manifest_field_value(manifest, field_key)
+        manifest_norm = normalize_compare_value(field_def, manifest_raw)
+        distinct = sorted({v[0] for v in applicable_values})
+        rule_ids: list[str] = ["R-001"]
+        status = "provided"
+        reason = ""
+
+        if manifest_norm:
+            rule_ids.append("R-002")
+            mismatched = [v for v in applicable_values if v[0] != manifest_norm]
+            if mismatched:
+                status = "needs_human_review"
+                reason = (
+                    f"适用文件中存在与 manifest 不一致的「{name_zh}」"
+                    f"（manifest={manifest_raw}；冲突 "
+                    + "、".join(
+                        f"{Path(e['file_id']).name}={e.get('value')}"
+                        for _, _, e in mismatched[:4]
+                    )
+                    + "）"
+                )
+            elif applicable_values:
+                status = "provided"
+                reason = f"适用且有值文件均与 manifest「{name_zh}」一致"
+            else:
+                status = "provided"
+                reason = f"manifest 有「{name_zh}」，适用文件暂无抽出值（不判缺失）"
+        else:
+            # R-003: ≥min_coverage of applicable files have values → cross-compare
+            applicable_file_count = sum(
+                1 for e in values_by_file if e.get("applicable")
+            )
+            value_count = len(applicable_values)
+            coverage = (
+                (value_count / applicable_file_count) if applicable_file_count else 0.0
+            )
+            if value_count > 0 and coverage >= min_coverage:
+                rule_ids.append("R-003")
+                if len(distinct) > 1:
+                    status = "needs_human_review"
+                    reason = (
+                        f"manifest 无「{name_zh}」，"
+                        f"{value_count}/{applicable_file_count} 个适用文件有值"
+                        f"（≥{coverage_pct}%）且取值不一致："
+                        + "；".join(distinct[:5])
+                    )
+                else:
+                    status = "provided"
+                    reason = (
+                        f"manifest 无「{name_zh}」，"
+                        f"{value_count}/{applicable_file_count} 个适用文件有值"
+                        f"（≥{coverage_pct}%）且取值一致"
+                    )
+            elif value_count > 0:
+                rule_ids.append("R-003")
+                status = "provided"
+                reason = (
+                    f"manifest 无「{name_zh}」，仅 "
+                    f"{value_count}/{applicable_file_count} 个适用文件有值"
+                    f"（未达 {coverage_pct}%），记录候选、不判冲突"
+                )
+            else:
+                status = "provided"
+                reason = f"无适用文件提供「{name_zh}」，跳过一致性比较"
+
+        result = {
+            "field_key": field_key,
+            "field_name": name_zh,
+            "consistency": consistency,
+            "manifest_value": manifest_raw,
+            "status": status,
+            "values_by_file": values_by_file,
+            "rule_ids": rule_ids,
+            "reason": reason,
+            "applicable_value_count": len(applicable_values),
+            "distinct_values": distinct,
+        }
+        field_results.append(result)
+
+        if status == "needs_human_review":
+            rule_findings.append(
+                {
+                    "code": "RULE",
+                    "name": f"字段一致性:{name_zh}",
+                    "status": "needs_human_review",
+                    "severity": "warning",
+                    "reason": reason,
+                    "suggestion": (
+                        "以主参考 manifest 为准核对使用文件类别；"
+                        if manifest_norm
+                        else "在使用文件类别间核对并人工确认；"
+                    )
+                    + ("全局字段" if consistency == "global" else "文件类别内字段"),
+                    "field": field_key,
+                    "field_name": name_zh,
+                    "rule_ids": rule_ids,
+                    "consistency": consistency,
+                }
+            )
+            # legacy brief buckets (Chinese name)
+            valmap: dict[str, list[str]] = defaultdict(list)
+            for norm, _raw, entry in applicable_values:
+                valmap[norm].append(entry["file_id"])
+            if manifest_norm:
+                valmap[manifest_norm].append("(manifest)")
+            if len(valmap) > 1:
+                legacy_conflicts[name_zh] = {
+                    "values": dict(valmap),
+                    "summary": format_value_map(valmap),
+                }
+
+    anchor = {}
+    for key, cell in (manifest.get("fields") or {}).items():
+        if isinstance(cell, dict) and cell.get("value") is not None:
+            fd = field_defs.get(key) or {}
+            anchor[str(fd.get("name") or key)] = str(cell["value"])
+
+    return {
+        "锚值": anchor,
+        "冲突": legacy_conflicts,
+        "conflicts": [
+            {
+                "field": f.get("field_name"),
+                "field_key": f.get("field_key"),
+                "consistency": f.get("consistency"),
+                "status": f.get("status"),
+                "manifest_value": f.get("manifest_value"),
+                "values": f.get("distinct_values"),
+                "summary": f.get("reason"),
+                "rule_ids": f.get("rule_ids"),
+                "scope": f.get("consistency"),
+            }
+            for f in field_results
+            if f.get("status") == "needs_human_review"
+        ],
+        "fields": field_results,
+        "rule_findings": rule_findings,
+        "excluded_misfiled": sorted(misfiled_paths),
+        "note": (
+            "C2：global=有值文件全局比；scoped=仅 R-001 使用文件类别内比；"
+            "R-003 适用文件有值覆盖率≥min_coverage（默认25%）才互比；"
+            "不适用 applicable=false；错传已排除"
+        ),
+        "generated_by": "audit_prepare.py",
     }
 
 
@@ -633,33 +1577,77 @@ def run(case_dir: Path, rules_path: Path) -> Path:
 
     file_rows: list[dict] = []
     fields_by_file: dict[str, dict] = {}
+    fields_payload_files: dict[str, dict] = {}
+    evidence_items: list[dict] = []
     classification: list[dict] = []
+    name_to_key = manifest_name_to_key(rules)
 
     for fp in iter_files(files_dir):
         rel = fp.relative_to(case_dir).as_posix()
-        text = read_pdf_text(fp) if fp.suffix.lower() == ".pdf" else ""
-        text_stripped = text.strip()
-        unreadable = fp.suffix.lower() == ".pdf" and len(text_stripped) < 20
-        fields = extract_fields(text)
+        ext = fp.suffix.lower()
+        unsupported_format = ext != ".pdf"
+        pages: list[tuple[int, str]] = []
+        page_count = 0
+        if unsupported_format:
+            text = ""
+            candidates: list[dict] = []
+            unreadable = True
+        else:
+            pages = list(iter_pdf_pages(fp))
+            page_count = len(pages)
+            text = "\n".join(t for _n, t in pages)
+            candidates = extract_field_candidates(pages, name_to_key)
+            text_stripped = text.strip()
+            unreadable = len(text_stripped) < 20
+
+        fields = candidates_to_summary(candidates)
         cat, conf, hits = classify(fp.name, text)
-        if unreadable:
+        if unsupported_format:
+            cat, conf = "unknown", "low"
+            hits = hits + ["unsupported_format"]
+        elif unreadable:
             cat, conf = "unknown", "low"
             hits = hits + ["no_extractable_text"]
+
         row = {
             "path": rel,
             "rel_path": rel,
             "filename": fp.name,
-            "ext": fp.suffix.lower(),
+            "ext": ext,
             "size_bytes": fp.stat().st_size,
             "category": cat,
             "confidence": conf,
             "evidence": hits,
             "fields": fields,
+            "candidates": candidates,
+            "page_count": page_count,
             "text_head": text[:1200],
             "unreadable": unreadable,
+            "unsupported_format": unsupported_format,
         }
         file_rows.append(row)
         fields_by_file[rel] = fields
+        fields_payload_files[rel] = {
+            "page_count": page_count,
+            "candidates": candidates,
+            "summary": fields,
+            "unreadable": unreadable,
+            "unsupported_format": unsupported_format,
+        }
+        for c in candidates:
+            evidence_items.append(
+                {
+                    "file_id": rel,
+                    "field_key": c.get("field_key"),
+                    "name": c.get("name"),
+                    "value": c.get("value"),
+                    "page": c.get("page"),
+                    "evidence": c.get("evidence"),
+                    "source": c.get("source"),
+                    "confidence": c.get("confidence"),
+                    "bbox": c.get("bbox"),
+                }
+            )
         classification.append(
             {
                 "path": rel,
@@ -667,14 +1655,23 @@ def run(case_dir: Path, rules_path: Path) -> Path:
                 "confidence": conf,
                 "evidence": hits,
                 "unreadable": unreadable,
+                "unsupported_format": unsupported_format,
+                "page_count": page_count,
             }
         )
 
+    raw_manifest_name = str(manifest.get("project_name") or "")
     anchor = anchor_from_manifest(manifest)
-    anchor_name = resolve_anchor_name(anchor.get("项目名称", ""), file_rows)
-    if anchor_name and is_weak_project_name(str(manifest.get("project_name") or "")):
-        # Persist consensus so later runs / UI see the real engineering name
+    anchor_name = resolve_anchor_name(anchor.get("项目名称", "") or raw_manifest_name, file_rows)
+    project_name_resolved_from_files = bool(
+        anchor_name
+        and is_weak_project_name(raw_manifest_name)
+        and anchor_name != raw_manifest_name.strip()
+    )
+    if project_name_resolved_from_files:
+        # 用户未明确指定真实工程名时，以多数文件共同名称回写，供前端同步
         manifest["project_name"] = anchor_name
+        manifest["project_name_source"] = "file_consensus"
         try:
             (case_dir / "manifest.json").write_text(
                 json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
@@ -682,6 +1679,12 @@ def run(case_dir: Path, rules_path: Path) -> Path:
             )
         except OSError:
             pass
+        print(
+            f"[audit_prepare] project_name resolved from files: "
+            f"{raw_manifest_name!r} -> {anchor_name!r}"
+        )
+    elif not is_weak_project_name(raw_manifest_name):
+        manifest["project_name_source"] = "user"
     mark_misfiled(file_rows, anchor_name)
     misfiled_paths = {r["rel_path"] for r in file_rows if r.get("misfiled")}
 
@@ -702,8 +1705,6 @@ def run(case_dir: Path, rules_path: Path) -> Path:
         "generated_by": "audit_prepare.py",
         "generated_at": datetime.now(timezone.utc).isoformat(),
     }
-    consensus = build_consensus(manifest, fields_by_file, misfiled_paths)
-    findings = build_findings(rules, file_rows, consensus)
 
     (work / "inventory.json").write_text(
         json.dumps(inventory, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -713,8 +1714,114 @@ def run(case_dir: Path, rules_path: Path) -> Path:
         encoding="utf-8",
     )
     (work / "fields.json").write_text(
-        json.dumps(fields_by_file, ensure_ascii=False, indent=2), encoding="utf-8"
+        json.dumps(
+            {
+                "generated_by": "audit_prepare.py",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "note": "C1 页面级候选；summary 为每字段首次命中（中文名），供错传/共识兼容",
+                "files": fields_payload_files,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
     )
+    (work / "evidence.json").write_text(
+        json.dumps(
+            {
+                "generated_by": "audit_prepare.py",
+                "generated_at": datetime.now(timezone.utc).isoformat(),
+                "items": evidence_items,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    # B1: select primary reference (respect user pre-selection)
+    selection = select_primary_reference(rules, file_rows, manifest)
+    primary_payload = {
+        "status": selection["status"],
+        "reason": selection.get("reason"),
+        "expected": selection.get("expected"),
+        "candidates": selection.get("candidates") or [],
+        "primary": selection.get("primary"),
+        "generated_by": "audit_prepare.py",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+    (work / "primary_selection.json").write_text(
+        json.dumps(primary_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+
+    if selection["status"] != "selected":
+        # B2: 无主文件不写正式 fields（仅 null 骨架，禁止用其它文件补齐）
+        fields_skel = empty_manifest_fields(rules)
+        manifest = write_manifest_primary(case_dir, manifest, None, fields_skel)
+        finding = primary_failure_finding(selection)
+        findings = [finding]
+        consensus = {
+            "锚值": {},
+            "冲突": {},
+            "conflicts": [],
+            "excluded_misfiled": sorted(misfiled_paths),
+            "note": "无主参考文件，未生成正式核查结论",
+            "primary_status": "no_primary",
+        }
+        (work / "field_consensus.json").write_text(
+            json.dumps(consensus, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        (work / "findings.json").write_text(
+            json.dumps(
+                {
+                    "items": findings,
+                    "generated_by": "audit_prepare.py",
+                    "rules_profile": rules.get("profile_id"),
+                    "primary_status": "no_primary",
+                    "task_status": "needs_human_review",
+                    "formal_conclusion": False,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        write_no_primary_report(
+            work / "audit-report.md", manifest, rules, inventory, selection
+        )
+        write_no_primary_brief(work / "audit-brief.md", selection)
+        print(f"[audit_prepare] case={case_dir}")
+        print(
+            f"[audit_prepare] NO_PRIMARY reason={selection.get('reason')} "
+            f"files={len(file_rows)} -> {work}"
+        )
+        return work
+
+    # B2: fields only from primary reference
+    task_project_name = str(manifest.get("project_name") or "")
+    manifest_fields = build_manifest_fields(rules, case_dir, selection["primary"])
+    manifest = write_manifest_primary(
+        case_dir, manifest, selection["primary"], manifest_fields
+    )
+    # 任务身份 project_name 与 fields.project_name 分离，禁止混写
+    if task_project_name:
+        manifest["project_name"] = task_project_name
+        try:
+            (case_dir / "manifest.json").write_text(
+                json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
+
+    filled = sum(1 for v in manifest_fields.values() if v.get("value") is not None)
+    # C2: global/scoped + R-001/002/003
+    consensus = build_field_consistency(rules, manifest, file_rows, misfiled_paths)
+    # 材料完整性仍走 build_findings；字段冲突用 rule_findings，避免与旧 FIELD 重复
+    findings = build_findings(rules, file_rows, {**consensus, "冲突": {}})
+    findings.extend(consensus.get("rule_findings") or [])
+
     (work / "field_consensus.json").write_text(
         json.dumps(consensus, ensure_ascii=False, indent=2), encoding="utf-8"
     )
@@ -724,6 +1831,11 @@ def run(case_dir: Path, rules_path: Path) -> Path:
                 "items": findings,
                 "generated_by": "audit_prepare.py",
                 "rules_profile": rules.get("profile_id"),
+                "primary_status": "selected",
+                "primary_reference": selection["primary"],
+                "manifest_fields_filled": filled,
+                "manifest_fields_total": len(manifest_fields),
+                "field_rule_results": len(consensus.get("fields") or []),
             },
             ensure_ascii=False,
             indent=2,
@@ -734,7 +1846,11 @@ def run(case_dir: Path, rules_path: Path) -> Path:
     write_audit_brief(work / "audit-brief.md", findings, consensus)
 
     print(f"[audit_prepare] case={case_dir}")
-    print(f"[audit_prepare] files={len(file_rows)} findings={len(findings)} -> {work}")
+    print(
+        f"[audit_prepare] primary={selection['primary'].get('file_name')} "
+        f"manifest_fields={filled}/{len(manifest_fields)} "
+        f"files={len(file_rows)} findings={len(findings)} -> {work}"
+    )
     return work
 
 

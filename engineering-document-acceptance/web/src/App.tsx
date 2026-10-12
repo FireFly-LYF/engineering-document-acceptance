@@ -21,11 +21,13 @@ import {
   apiDeleteFolder,
   apiGetConfig,
   apiGetFindings,
+  apiGetManifest,
   apiListFiles,
   apiMoveFile,
   apiRenameCase,
   apiRenameFile,
   apiRenameFolder,
+  apiSetPrimaryReference,
   apiStartAudit,
   apiStatementStatus,
 } from './lib/api'
@@ -47,7 +49,14 @@ import {
   saveState,
   touchProject,
 } from './store'
-import type { AppState, Project, ProjectFile, ProjectType } from './types'
+import type {
+  AppState,
+  PrimaryReference,
+  PrimarySelection,
+  Project,
+  ProjectFile,
+  ProjectType,
+} from './types'
 
 function listedToProjectFiles(
   listed: Array<{ relativePath: string; name: string; size: number; kind: 'pdf' | 'other' }>,
@@ -158,7 +167,10 @@ function App() {
   }
 
   async function syncFromDisk(projectId: string, opts?: { keepAnnotations?: boolean }) {
-    const data = await apiListFiles(projectId)
+    const [data, manifestPack] = await Promise.all([
+      apiListFiles(projectId),
+      apiGetManifest(projectId).catch(() => null),
+    ])
     const keep = Boolean(opts?.keepAnnotations)
     updateProject(projectId, (p) => {
       const files = listedToProjectFiles(data.files, p.files, keep)
@@ -171,6 +183,24 @@ function App() {
             ? p.auditStatus
             : 'ready'
           : 'draft',
+      }
+      if (manifestPack) {
+        const resolvedName = (
+          manifestPack.project_name ||
+          manifestPack.manifest?.project_name ||
+          ''
+        ).trim()
+        if (resolvedName && resolvedName !== p.name) {
+          next.name = resolvedName
+        }
+        next.primaryReference = manifestPack.primary_reference ?? null
+        if (manifestPack.primarySelection?.status === 'no_primary') {
+          next.primarySelectionStatus = 'no_primary'
+          next.primarySelection = manifestPack.primarySelection
+        } else if (manifestPack.primary_reference) {
+          next.primarySelectionStatus = 'selected'
+          next.primarySelection = manifestPack.primarySelection
+        }
       }
       if (!keep) {
         next.folderMarks = []
@@ -286,25 +316,76 @@ function App() {
     )
   }
 
-  function applyFindings(projectId: string, items: WorkFinding[], note?: string) {
+  function applyFindings(
+    projectId: string,
+    items: WorkFinding[],
+    opts?: {
+      note?: string
+      projectName?: string
+      primaryReference?: PrimaryReference | null
+      primarySelection?: PrimarySelection | null
+      primaryStatus?: string
+      formalConclusion?: boolean
+    },
+  ) {
     setFindingsHint(null)
     auditLockRef.current = false
+    const noPrimary = opts?.primaryStatus === 'no_primary'
+    const note =
+      opts?.note ||
+      (noPrimary
+        ? '无主文件 — 需人工指定主参考或补传后重跑；未生成正式核查结论，不能宣称核查通过。'
+        : undefined)
     updateProject(projectId, (p) => {
       const { files, folderMarks, summary } = annotateFromFindings(p.files, items)
+      const resolvedName = (opts?.projectName || '').trim()
       return {
         ...p,
+        name: resolvedName && resolvedName !== p.name ? resolvedName : p.name,
         files,
         folderMarks,
         summary: {
           ...summary,
           note,
         },
+        primaryReference:
+          opts?.primaryReference !== undefined
+            ? opts.primaryReference
+            : p.primaryReference,
+        primarySelection:
+          opts?.primarySelection !== undefined
+            ? opts.primarySelection
+            : p.primarySelection,
+        primarySelectionStatus: noPrimary
+          ? 'no_primary'
+          : opts?.primaryReference || opts?.primaryStatus === 'selected'
+            ? 'selected'
+            : p.primarySelectionStatus,
         auditStatus: 'done',
         aghMessage: undefined,
-        statementStatus: p.statementStatus === 'ready' ? 'ready' : 'waiting',
+        // 无主文件时不轮询「通过」文书
+        statementStatus: noPrimary
+          ? 'idle'
+          : p.statementStatus === 'ready'
+            ? 'ready'
+            : 'waiting',
       }
     })
-    startStatementPoll(projectId)
+    if (!noPrimary) startStatementPoll(projectId)
+  }
+
+  function applyFindingsPack(
+    projectId: string,
+    pack: Awaited<ReturnType<typeof apiGetFindings>>,
+  ) {
+    const items = (pack.findings?.items || []) as WorkFinding[]
+    applyFindings(projectId, items, {
+      projectName: pack.project_name,
+      primaryReference: pack.primary_reference ?? pack.findings?.primary_reference ?? null,
+      primarySelection: pack.primarySelection ?? null,
+      primaryStatus: pack.primary_status || pack.findings?.primary_status,
+      formalConclusion: pack.findings?.formal_conclusion,
+    })
   }
 
   function stopStatementPoll() {
@@ -312,6 +393,19 @@ function App() {
       window.clearInterval(statementPollRef.current)
       statementPollRef.current = null
     }
+  }
+
+  function markStatementAbsent(projectId: string) {
+    stopStatementPoll()
+    updateProject(projectId, (p) =>
+      p.statementStatus === 'ready'
+        ? p
+        : {
+            ...p,
+            statementStatus: 'idle',
+            statementFileName: undefined,
+          },
+    )
   }
 
   function startStatementPoll(projectId: string) {
@@ -329,6 +423,12 @@ function App() {
           stopStatementPoll()
           return
         }
+        // Agent 已结束仍无 docx → 不再假装「正在生成」
+        const auditSt = await apiAuditStatus(projectId).catch(() => null)
+        if (auditSt && !auditSt.running && ticks >= 2) {
+          markStatementAbsent(projectId)
+          return
+        }
         updateProject(projectId, (p) => ({
           ...p,
           statementStatus: 'waiting',
@@ -341,7 +441,7 @@ function App() {
     statementPollRef.current = window.setInterval(() => {
       ticks += 1
       void tick()
-      if (ticks >= 150) stopStatementPoll()
+      if (ticks >= 150) markStatementAbsent(projectId)
     }, 2000)
   }
 
@@ -412,7 +512,7 @@ function App() {
             }))
           }
           if (pack.ready && pack.findings && Array.isArray(pack.findings.items)) {
-            applyFindings(projectId, (pack.findings.items || []) as WorkFinding[])
+            applyFindingsPack(projectId, pack)
             stopPolling()
           }
         } catch {
@@ -511,6 +611,8 @@ function App() {
       auditStatus: p.files.length ? 'ready' : 'draft',
       aghMessage: undefined,
       aghPid: undefined,
+      statementStatus: p.statementStatus === 'ready' ? 'ready' : 'idle',
+      statementFileName: p.statementStatus === 'ready' ? p.statementFileName : undefined,
     }))
     try {
       await apiCancelAudit(active.id, pid)
@@ -534,9 +636,39 @@ function App() {
         setFindingsHint('尚未生成 findings.json，请稍候或在 AGH 网页查看进度')
         return
       }
-      applyFindings(active.id, (pack.findings.items || []) as WorkFinding[])
+      applyFindingsPack(active.id, pack)
     } catch (e) {
       setFindingsHint(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function onSetPrimary(file: ProjectFile) {
+    if (!active) return
+    try {
+      const res = await apiSetPrimaryReference(active.id, file.relativePath)
+      updateProject(active.id, (p) => ({
+        ...p,
+        primaryReference: res.primary_reference,
+        primarySelectionStatus: res.primary_reference ? 'selected' : undefined,
+        primarySelection: null,
+      }))
+    } catch (e) {
+      showError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function onClearPrimary() {
+    if (!active) return
+    try {
+      await apiSetPrimaryReference(active.id, null)
+      updateProject(active.id, (p) => ({
+        ...p,
+        primaryReference: null,
+        primarySelectionStatus: undefined,
+        primarySelection: null,
+      }))
+    } catch (e) {
+      showError(e instanceof Error ? e.message : String(e))
     }
   }
 
@@ -690,6 +822,9 @@ function App() {
                   folderMarks={active.folderMarks}
                   extraFolders={active.extraFolders}
                   disabled={busy}
+                  primaryReference={active.primaryReference}
+                  onSetPrimary={(file) => void onSetPrimary(file)}
+                  onClearPrimary={() => void onClearPrimary()}
                   onRenameFile={(fileId, newName) => {
                     void (async () => {
                       const file = active.files.find((f) => f.id === fileId)

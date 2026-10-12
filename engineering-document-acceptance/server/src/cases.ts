@@ -42,15 +42,27 @@ export function resolveRulesProfile(raw?: string | null): ProjectTypeId {
   return 'housing-construction'
 }
 
+export type PrimaryReference = {
+  file_id: string
+  file_name: string
+  document_code: string
+  source: 'user' | 'auto'
+}
+
 export type CaseManifest = {
   project_id: string
   project_type: ProjectTypeId | string
   rules_profile: string
   project_name: string
+  /** user=任务创建填写；file_consensus=脚本由多数文件共识回写 */
+  project_name_source?: 'user' | 'file_consensus' | string
   batch_label?: string
   created_at?: string
   updated_at?: string
   source?: string
+  /** 主参考文件；无主文件时为 null */
+  primary_reference?: PrimaryReference | null
+  fields?: Record<string, unknown>
 }
 
 export type ListedFile = {
@@ -108,6 +120,7 @@ export async function ensureCase(id: string, opts: EnsureCaseOpts = {}): Promise
       project_type: typeId,
       rules_profile: typeId,
       project_name: projectName,
+      project_name_source: 'user',
       created_at: new Date().toISOString(),
       source: 'archive-check-web',
     }
@@ -115,7 +128,10 @@ export async function ensureCase(id: string, opts: EnsureCaseOpts = {}): Promise
   }
 
   if (!created) {
-    if (opts.name !== undefined) manifest.project_name = auditProjectName(opts.name)
+    if (opts.name !== undefined) {
+      manifest.project_name = auditProjectName(opts.name)
+      manifest.project_name_source = 'user'
+    }
     if (opts.batchLabel !== undefined) manifest.batch_label = opts.batchLabel
     if (opts.projectType !== undefined) {
       if (!isProjectTypeId(opts.projectType)) {
@@ -163,6 +179,86 @@ export async function updateCaseName(id: string, name: string) {
     throw err
   }
   return ensureCase(id, { name: n })
+}
+
+/** 读取 case manifest（不存在则创建最小身份后返回） */
+export async function readManifest(id: string): Promise<CaseManifest> {
+  return ensureCase(id)
+}
+
+/**
+ * 用户设定/清空主参考文件。
+ * relativePath 为相对 files/ 的路径，或带 files/ 前缀的 case 相对路径；null 清空。
+ */
+export async function setPrimaryReference(
+  id: string,
+  relativePath: string | null,
+): Promise<CaseManifest> {
+  const manifest = await ensureCase(id)
+  if (relativePath == null || String(relativePath).trim() === '') {
+    manifest.primary_reference = null
+    manifest.updated_at = new Date().toISOString()
+    await fs.writeFile(
+      path.join(caseDir(id), 'manifest.json'),
+      `${JSON.stringify(manifest, null, 2)}\n`,
+      'utf8',
+    )
+    return manifest
+  }
+
+  let rel = String(relativePath).replace(/\\/g, '/').replace(/^\/+/, '')
+  if (rel.startsWith('files/')) {
+    rel = rel.slice('files/'.length)
+  }
+  const resolved = resolveUnderFiles(id, rel)
+  try {
+    const st = await fs.stat(resolved.abs)
+    if (!st.isFile()) {
+      const err = new Error('主参考路径不是文件') as Error & { status?: number }
+      err.status = 400
+      throw err
+    }
+  } catch (e) {
+    if (e instanceof Error && 'status' in e) throw e
+    const err = new Error('主参考文件不存在，请先上传') as Error & { status?: number }
+    err.status = 400
+    throw err
+  }
+
+  const fileId = `files/${resolved.rel}`
+  manifest.primary_reference = {
+    file_id: fileId,
+    file_name: path.posix.basename(resolved.rel),
+    document_code: '',
+    source: 'user',
+  }
+  if (!manifest.fields || typeof manifest.fields !== 'object') {
+    manifest.fields = {}
+  }
+  manifest.updated_at = new Date().toISOString()
+  await fs.writeFile(
+    path.join(caseDir(id), 'manifest.json'),
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    'utf8',
+  )
+  return manifest
+}
+
+export type PrimarySelectionWork = {
+  status?: string
+  reason?: string
+  expected?: { code?: string; name?: string }
+  candidates?: Array<{ path?: string; filename?: string; score?: number; reasons?: string[] }>
+  primary?: PrimaryReference | null
+}
+
+export async function readPrimarySelection(id: string): Promise<PrimarySelectionWork | null> {
+  try {
+    const raw = await fs.readFile(path.join(workDir(id), 'primary_selection.json'), 'utf8')
+    return JSON.parse(raw) as PrimarySelectionWork
+  } catch {
+    return null
+  }
 }
 
 async function walkFiles(dir: string, prefix = ''): Promise<ListedFile[]> {
@@ -299,7 +395,14 @@ export async function readFindings(id: string) {
   const p = path.join(workDir(id), 'findings.json')
   try {
     const raw = await fs.readFile(p, 'utf8')
-    return JSON.parse(raw) as { items?: unknown[]; generated_by?: string }
+    return JSON.parse(raw) as {
+      items?: unknown[]
+      generated_by?: string
+      primary_status?: string
+      primary_reference?: PrimaryReference | null
+      task_status?: string
+      formal_conclusion?: boolean
+    }
   } catch {
     return null
   }
@@ -324,7 +427,7 @@ export async function writeAuditPrompt(
     '',
     `请使用 engineering-archive-audit 对 cases/${id} 做工程验收资料材料齐全与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。`,
     '',
-    '核查完成后，请使用 engineering-doc-generator 生成情况说明word文件。',
+    '有主文件且核查完成后，请使用 engineering-doc-generator 生成情况说明 word 文件。',
   ].join('\n')
   const promptPath = path.join(caseDir(id), 'TEST_PROMPT.txt')
   await fs.writeFile(promptPath, `${text}\n`, 'utf8')

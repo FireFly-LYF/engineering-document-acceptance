@@ -1,4 +1,10 @@
-import type { ProjectFile, ProjectType, UploadSource } from '../types'
+import type {
+  PrimaryReference,
+  PrimarySelection,
+  ProjectFile,
+  ProjectType,
+  UploadSource,
+} from '../types'
 
 export type AuditLaunch = {
   caseId: string
@@ -227,9 +233,57 @@ export async function apiGetFindings(caseId: string) {
   if (!res.ok) throw new Error(await parseError(res))
   return res.json() as Promise<{
     ready: boolean
-    findings: { items?: unknown[] } | null
+    findings: {
+      items?: unknown[]
+      primary_status?: string
+      primary_reference?: PrimaryReference | null
+      formal_conclusion?: boolean
+    } | null
     sessionId?: string | null
     aghUrl?: string
+    project_name?: string
+    project_name_source?: string | null
+    primary_reference?: PrimaryReference | null
+    primarySelection?: PrimarySelection | null
+    primary_status?: string
+  }>
+}
+
+/** 设定或清空主参考；relativePath 为 files/ 下相对路径，null 清空 */
+export async function apiSetPrimaryReference(
+  caseId: string,
+  relativePath: string | null,
+) {
+  const res = await fetch(
+    `/api/cases/${encodeURIComponent(caseId)}/primary-reference`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ relativePath }),
+    },
+  )
+  if (!res.ok) throw new Error(await parseError(res))
+  return res.json() as Promise<{
+    ok: true
+    manifest: { primary_reference?: PrimaryReference | null }
+    primary_reference: PrimaryReference | null
+  }>
+}
+
+export async function apiGetManifest(caseId: string) {
+  const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}/manifest`)
+  if (!res.ok) throw new Error(await parseError(res))
+  return res.json() as Promise<{
+    ok: true
+    manifest: {
+      project_name?: string
+      project_name_source?: string | null
+      primary_reference?: PrimaryReference | null
+    }
+    project_name?: string
+    project_name_source?: string | null
+    primary_reference: PrimaryReference | null
+    primarySelection: PrimarySelection | null
   }>
 }
 

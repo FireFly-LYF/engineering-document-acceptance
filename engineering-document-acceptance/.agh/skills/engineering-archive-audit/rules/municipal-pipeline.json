@@ -9,70 +9,100 @@
       "name": "项目名称",
       "type": "text",
       "required": true,
-      "aliases": ["工程名称", "建设项目名称"]
+      "aliases": [
+        "工程名称",
+        "建设项目名称"
+      ],
+      "consistency": "global"
     },
     {
       "key": "project_code",
       "name": "项目编号",
       "type": "identifier",
       "required": true,
-      "aliases": ["工程编号", "建设项目编号", "编号"]
+      "aliases": [
+        "工程编号",
+        "建设项目编号",
+        "编号"
+      ],
+      "consistency": "global"
     },
     {
       "key": "owner",
       "name": "建设单位",
       "type": "organization",
-      "required": true
+      "required": true,
+      "consistency": "scoped"
     },
     {
       "key": "contractor",
       "name": "施工单位",
       "type": "organization",
-      "required": true
+      "required": true,
+      "consistency": "scoped"
     },
     {
       "key": "supervisor",
       "name": "监理单位",
       "type": "organization",
-      "required": true
+      "required": true,
+      "consistency": "scoped"
     },
     {
       "key": "designer",
       "name": "设计单位",
       "type": "organization",
-      "required": false
+      "required": false,
+      "consistency": "scoped"
     },
     {
       "key": "address",
       "name": "工程地址",
       "type": "text",
       "required": false,
-      "aliases": ["建设地点", "工程地点", "管线位置", "管线起讫点"]
+      "aliases": [
+        "建设地点",
+        "工程地点",
+        "管线位置",
+        "管线起讫点"
+      ],
+      "consistency": "scoped"
     },
     {
       "key": "start_date",
       "name": "开工日期",
       "type": "date",
-      "required": false
+      "required": false,
+      "consistency": "scoped"
     },
     {
       "key": "finish_date",
       "name": "竣工日期",
       "type": "date",
-      "required": false
+      "required": false,
+      "consistency": "scoped"
     },
     {
       "key": "contract_amount",
       "name": "合同金额",
       "type": "money",
       "required": false,
-      "aliases": ["签约合同价", "合同价格", "合同金额（元）"]
+      "aliases": [
+        "签约合同价",
+        "合同价格",
+        "合同金额（元）"
+      ],
+      "consistency": "scoped"
     }
   ],
   "primary_reference": {
     "code": "MP-A-02",
     "name": "建筑工程施工许可证",
-    "aliases": ["施工许可证", "开工证", "建设工程施工许可证"]
+    "aliases": [
+      "施工许可证",
+      "开工证",
+      "建设工程施工许可证"
+    ]
   },
   "required_documents": [
     {
@@ -81,7 +111,10 @@
       "required": true,
       "stage": "工程准备",
       "category": "preparation",
-      "aliases": ["规划许可证", "建设用地规划许可证"]
+      "aliases": [
+        "规划许可证",
+        "建设用地规划许可证"
+      ]
     },
     {
       "code": "MP-A-02",
@@ -89,7 +122,11 @@
       "required": true,
       "stage": "工程准备",
       "category": "preparation",
-      "aliases": ["施工许可证", "开工证", "建设工程施工许可证"]
+      "aliases": [
+        "施工许可证",
+        "开工证",
+        "建设工程施工许可证"
+      ]
     },
     {
       "code": "MP-A-03",
@@ -97,7 +134,11 @@
       "required": true,
       "stage": "工程准备",
       "category": "contract",
-      "aliases": ["建设工程施工合同", "承包合同", "施工中标通知书及承包合同"]
+      "aliases": [
+        "建设工程施工合同",
+        "承包合同",
+        "施工中标通知书及承包合同"
+      ]
     },
     {
       "code": "MP-A-04",
@@ -105,7 +146,11 @@
       "required": true,
       "stage": "工程准备",
       "category": "contract",
-      "aliases": ["委托监理合同", "监理中标通知书及委托合同", "建设工程委托监理合同"]
+      "aliases": [
+        "委托监理合同",
+        "监理中标通知书及委托合同",
+        "建设工程委托监理合同"
+      ]
     },
     {
       "code": "MP-B-01",
@@ -113,7 +158,9 @@
       "required": true,
       "stage": "监理",
       "category": "supervision",
-      "aliases": ["监理规划书"]
+      "aliases": [
+        "监理规划书"
+      ]
     },
     {
       "code": "MP-B-02",
@@ -121,7 +168,9 @@
       "required": false,
       "stage": "监理",
       "category": "supervision",
-      "aliases": ["专业监理实施细则"]
+      "aliases": [
+        "专业监理实施细则"
+      ]
     },
     {
       "code": "MP-B-03",
@@ -129,7 +178,11 @@
       "required": true,
       "stage": "监理",
       "category": "supervision",
-      "aliases": ["监理单位质量评估报告", "监理评估报告", "质量评估报告"]
+      "aliases": [
+        "监理单位质量评估报告",
+        "监理评估报告",
+        "质量评估报告"
+      ]
     },
     {
       "code": "MP-C-01",
@@ -137,7 +190,11 @@
       "required": true,
       "stage": "施工",
       "category": "construction",
-      "aliases": ["施工组织设计方案", "施工方案", "施组"]
+      "aliases": [
+        "施工组织设计方案",
+        "施工方案",
+        "施组"
+      ]
     },
     {
       "code": "MP-C-02",
@@ -145,7 +202,11 @@
       "required": true,
       "stage": "施工",
       "category": "construction",
-      "aliases": ["隐蔽工程验收记录表", "隐蔽验收", "沟槽开挖复验记录"]
+      "aliases": [
+        "隐蔽工程验收记录表",
+        "隐蔽验收",
+        "沟槽开挖复验记录"
+      ]
     },
     {
       "code": "MP-C-03",
@@ -183,7 +244,12 @@
       "required": true,
       "stage": "材料检测",
       "category": "material_test",
-      "aliases": ["材料复试报告", "进场验收记录", "检测报告", "管材试验报告"]
+      "aliases": [
+        "材料复试报告",
+        "进场验收记录",
+        "检测报告",
+        "管材试验报告"
+      ]
     },
     {
       "code": "MP-E-01",
@@ -204,7 +270,11 @@
       "required": true,
       "stage": "竣工验收",
       "category": "completion_acceptance",
-      "aliases": ["竣工报告", "施工竣工报告", "工程竣工报告"]
+      "aliases": [
+        "竣工报告",
+        "施工竣工报告",
+        "工程竣工报告"
+      ]
     },
     {
       "code": "MP-E-03",
@@ -212,7 +282,10 @@
       "required": true,
       "stage": "竣工验收",
       "category": "completion_acceptance",
-      "aliases": ["设计文件质量检查报告", "设计检查报告"]
+      "aliases": [
+        "设计文件质量检查报告",
+        "设计检查报告"
+      ]
     },
     {
       "code": "MP-F-01",
@@ -220,7 +293,13 @@
       "required": true,
       "stage": "竣工图",
       "category": "as_built_drawing",
-      "aliases": ["竣工图", "工程竣工图", "给水竣工图", "排水竣工图", "燃气管线竣工图"]
+      "aliases": [
+        "竣工图",
+        "工程竣工图",
+        "给水竣工图",
+        "排水竣工图",
+        "燃气管线竣工图"
+      ]
     },
     {
       "code": "MP-F-02",
@@ -242,7 +321,10 @@
       "required": false,
       "stage": "专项验收",
       "category": "special_acceptance",
-      "aliases": ["竣工验收备案表", "管线工程竣工验收备案"]
+      "aliases": [
+        "竣工验收备案表",
+        "管线工程竣工验收备案"
+      ]
     },
     {
       "code": "MP-G-02",
@@ -250,7 +332,10 @@
       "required": false,
       "stage": "专项验收",
       "category": "special_acceptance",
-      "aliases": ["规划验收", "规划核实"]
+      "aliases": [
+        "规划验收",
+        "规划核实"
+      ]
     }
   ],
   "consistency_rules": [
@@ -259,26 +344,6 @@
       "name": "字段适用范围",
       "type": "field_scope",
       "scopes": [
-        {
-          "field": "project_name",
-          "documents": [
-            "建筑工程施工许可证",
-            "施工许可证",
-            "施工合同",
-            "监理合同",
-            "施工单位工程竣工报告",
-            "工程竣工验收报告"
-          ]
-        },
-        {
-          "field": "project_code",
-          "documents": [
-            "建筑工程施工许可证",
-            "施工许可证",
-            "施工合同",
-            "工程竣工验收报告"
-          ]
-        },
         {
           "field": "owner",
           "documents": [
@@ -351,7 +416,8 @@
             "工程竣工验收报告"
           ]
         }
-      ]
+      ],
+      "note": "consistency=global 不配 documents；scoped 见 scopes"
     },
     {
       "rule_id": "R-002",
@@ -364,7 +430,7 @@
       "name": "无 manifest 值时的跨文件一致性",
       "type": "cross_file_consistency",
       "operator": "all_values_equal",
-      "min_values": 2,
+      "min_coverage": 0.25,
       "only_when_manifest_empty": true
     }
   ]

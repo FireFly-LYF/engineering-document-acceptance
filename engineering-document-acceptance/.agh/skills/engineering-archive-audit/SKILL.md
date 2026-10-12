@@ -57,10 +57,19 @@ engineering-document-acceptance/
 
 | 键 | 含义 |
 | --- | --- |
-| `manifest_fields` | 要从主参考提取、并参与一致性比较的结构化字段（`key` / `name` / `type` / `required` / `aliases`） |
+| `manifest_fields` | 要从主参考提取、并参与一致性比较的结构化字段（另含 `consistency`） |
 | `primary_reference` | 主参考文件定义（`code` / `name` / `aliases`）；房屋建筑默认为 `A-02` 建筑工程施工许可证 |
 | `required_documents` | 必需资料清单（完整性匹配） |
 | `consistency_rules` | 字段核查规则；至少含 R-001 / R-002 / R-003 |
+
+`manifest_fields[].consistency`（C2）：
+
+| 值 | 含义 |
+| --- | --- |
+| `global` | **全局一致**（如 `project_name` / `project_code`）：本工程凡有值文件均适用，与 manifest（有值时）或彼此比对 |
+| `scoped` | **文件类别内一致**（如 `contract_amount`）：仅 R-001 `scopes[].documents` 列出的使用文件类别参与比较；其它文件 `applicable=false` |
+
+抽取仍对全部可读 PDF 进行（C1）；适用范围只约束**一致性比较**，不限制抽取。
 
 `required_documents[]` 条目最小字段：
 
@@ -78,9 +87,9 @@ engineering-document-acceptance/
 
 | rule_id | type | 作用 |
 | --- | --- | --- |
-| R-001 | `field_scope` | 字段只在 `scopes[].documents` 指定的文档类中查找；不适用 → `applicable=false` |
-| R-002 | `manifest_consistency` | manifest 有值时，适用且有值的文件须与 manifest 一致 |
-| R-003 | `cross_file_consistency` | manifest 空时，≥`min_values` 个适用文件有值则互比 |
+| R-001 | `field_scope` | scoped 字段只在指定使用文件类别内适用；不适用 → `applicable=false`（不算 missing） |
+| R-002 | `manifest_consistency` | manifest 有值时，适用且有值的文件须与 manifest 一致，否则 `needs_human_review` |
+| R-003 | `cross_file_consistency` | manifest 空时，≥`min_coverage`（默认 25%）个适用文件有值则互比；未达阈值只记候选、不判冲突 |
 
 字段与规则以 JSON 为唯一来源；确定性脚本做提取/校验/归一化/规则计算，Agent 不改写机器结论状态。
 
@@ -92,11 +101,29 @@ engineering-document-acceptance/
 进度:
 - [ ] 1. 确认 cases/<id> 与规则模板
 - [ ] 2. 运行 audit_prepare.py（必做，勿用手搓 inventory/findings）
-- [ ] 3. 阅读 _work/audit-brief.md + findings.json（不要通读全部 PDF）
-- [ ] 4. 仅对本工程字段冲突 / 错传 / 明显误判做抽查修正；勿把错传级联当多条本工程冲突
-- [ ] 5. 如需，润色 audit-report.md（不改结论方向）
-- [ ] 6. 摘要完整性核查统计（已提供/缺失/错传或重复/需复核）；文书交给 engineering-doc-generator
+- [ ] 3. 检查主参考选择：读 _work/primary_selection.json 与 manifest.primary_reference
+- [ ] 4. 若无主文件（status=no_primary）：停止正式核查，告知用户指定/补传后重跑；禁止宣称核查通过
+- [ ] 5. 有主文件时：确认 manifest.fields 仅来自主参考（缺值为 null，勿用其它文件补齐）
+- [ ] 6. 阅读 _work/audit-brief.md + findings.json（不要通读全部 PDF）
+- [ ] 7. 仅对本工程字段冲突 / 错传 / 明显误判做抽查修正；错传文件不再进入冲突判定
+- [ ] 8. 如需，润色 audit-report.md（不改结论方向）
+- [ ] 9. 摘要完整性核查统计（已提供/缺失/错传或重复/需复核）；文书交给 engineering-doc-generator
 ```
+
+### 主参考文件（B1）
+
+- 规则 `primary_reference`（如房屋建筑 `A-02` 建筑工程施工许可证）定义期望主参考文件类别。
+- 用户可在前端预先指定主文件（`manifest.primary_reference.source=user`）；脚本**信任**该选择（仅校验文件仍存在），请用户保证内容正确。
+- 未指定时，脚本按文件名 / 正文标题 / 分类 / 项目名称 / 可读性打分自动选择；唯一最高分写入 `manifest.primary_reference`（`file_id` / `file_name` / `document_code` / `source=auto`）。
+- **0 个候选或最高分并列无法区分** → `primary_reference: null`，写出 `_work/primary_selection.json`（`status=no_primary`）与 finding `PRIMARY`（`needs_human_review`），**结束正式核查流水线**（可保留 inventory / 候选列表）。报告与 brief 须标明「无主文件」，禁止宣称核查通过，勿强行生成「通过」类文书。
+
+### 从主参考写 manifest.fields（B2）
+
+由 **`audit_prepare.py` 在选中主参考后自动完成**：
+
+- 只从主参考文件按规则 `manifest_fields` 写入 `manifest.fields`（`value` / `page` / `evidence`）。
+- 主参考缺某字段 → 该项为 `null`；脚本不会、Agent 也**不得**用其它文件补齐。
+- 任务身份 `manifest.project_name` 与 `fields.project_name` 分离；抽查时勿把二者混为一谈。
 
 ### 确定性脚本（必跑）
 
@@ -107,9 +134,9 @@ python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cas
 python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/demo-housing-near-miss
 ```
 
-脚本会写入：`inventory.json`、`classification.json`、`fields.json`、`field_consensus.json`、`findings.json`、`audit-report.md`、`audit-brief.md`。  
+脚本会写入：`inventory.json`、`classification.json`、`fields.json`、`evidence.json`、`primary_selection.json`、`field_consensus.json`、`findings.json`、`audit-report.md`、`audit-brief.md`。  
 错传/他项文件不参与材料齐全命中与字段共识；本工程 FIELD 仅保留相对 manifest 锚值的真冲突。  
-空文本/损坏扫描标 `UNREADABLE`（`needs_human_review`），不能据此认定已提供。  
+空文本/损坏扫描标 `UNREADABLE`；非 PDF 标 `UNSUPPORTED`（本轮多格式不做），均为 `needs_human_review`，不能据此认定已提供。  
 演示对照：`demo-housing-mixed`（远域错传/编号金额/重复）、`demo-housing-near-miss`（近邻混淆/开工日期/缺检测/不可读）。  
 **禁止**让 Agent 重新枚举全部文件或对每份 PDF 做完整阅读来「重做」上述产物。
 
@@ -157,24 +184,27 @@ ZIP：先解压到 `cases/<id>/files/` 或 `_work/extracted/`，再跑脚本。
 
 每条分类须带 `confidence`（high/medium/low）与 `evidence`（引用了标题句、关键词或文件名哪一段）。
 
-## 3. 字段抽取层
+## 3. 字段抽取层（脚本 · C1）
 
-尽量从每份文件抽取，写入 `_work/fields.json`（按文件；缺失键省略，禁止填「暂缺/XXXX」）：
+由 **`audit_prepare.py` 对 PDF 全文逐页**抽取（不再只读前 2 页）。Agent 勿重做。
 
-- 项目名称、项目编号
-- 建设单位、施工单位、监理单位、设计单位
-- 工程地址
-- 开工日期、竣工日期
-- 合同金额
-- 文件编号 / 报告编号
-- 签字盖章信息（有哪些角色已签、是否见到印章描述）
+写入 `_work/fields.json`（按文件）：
 
-跨文件汇总到 `_work/field_consensus.json`：
+- `candidates[]`：页面级候选，同一字段多次出现**全部保留**；每项含 `field_key` / `value` / `page` / `evidence` / `source` / `confidence`（`bbox` 本轮可空）
+- `summary`：每中文字段名首次命中（供错传/共识兼容）
 
-- 各关键字段的「众数/锚值」候选；
-- 冲突列表：`field`、`values[]`（值 + 来源文件）、`severity`。
+写入 `_work/evidence.json`：扁平证据列表（页码、原文、来源）。
 
-锚值优先级（有则用之）：`manifest.json` 声明 > 竣工验收报告类文件 > 合同 > 其他。
+常见字段：项目名称/编号、建设/施工/监理/设计单位、工程地址、开竣工日期、合同金额、文件编号等。  
+**本轮仅 PDF 文本层**；Word / Excel / 图片 / 扫描 OCR 不做，标 `UNSUPPORTED` / `needs_human_review`。
+
+跨文件汇总到 `_work/field_consensus.json`（C2）：
+
+- `fields[]`：每字段含 `consistency` / `manifest_value` / `status` / `values_by_file` / `rule_ids` / `reason`
+- `values_by_file[]` 中不适用项：`applicable=false`（可带 `out_of_scope_value` 仅观察）
+- 冲突时 findings 增加 `RULE`（`needs_human_review`）
+
+锚值：主参考写入的 `manifest.fields`（有值走 R-002；无值走 R-003）。
 
 ## 4. 完整性与一致性核查层
 
@@ -235,14 +265,16 @@ ZIP：先解压到 `cases/<id>/files/` 或 `_work/extracted/`，再跑脚本。
 ## 产物清单（一次核查至少写出）
 
 
-| 文件                           | 内容      |
-| ---------------------------- | ------- |
-| `_work/inventory.json`       | 接收清单    |
-| `_work/classification.json`  | 分类结果    |
-| `_work/fields.json`          | 分文件字段   |
-| `_work/field_consensus.json` | 共识与冲突   |
-| `_work/findings.json`        | 结构化核查结论 |
-| `_work/audit-report.md`      | 证据链报告   |
+| 文件                              | 内容                         |
+| ------------------------------- | -------------------------- |
+| `_work/inventory.json`          | 接收清单                       |
+| `_work/classification.json`     | 分类结果                       |
+| `_work/fields.json`             | 分文件页面级候选 + summary         |
+| `_work/evidence.json`           | 扁平页码/原文证据                   |
+| `_work/primary_selection.json`  | 主参考选择结果与候选                 |
+| `_work/field_consensus.json`    | 共识与冲突                      |
+| `_work/findings.json`           | 结构化核查结论                    |
+| `_work/audit-report.md`         | 证据链报告                      |
 
 
 `_work/audit-brief.md`：核查抽查用精简摘要。文书执笔请读 `engineering-doc-generator` prepare 生成的 `agent-brief.md`。
@@ -258,7 +290,8 @@ ZIP：先解压到 `cases/<id>/files/` 或 `_work/extracted/`，再跑脚本。
 ## 异常与边界
 
 - 无文件：停止并请用户指定 `cases/<id>`。
-- 扫描件无法读字：分类/字段标 low，finding 用 `needs_human_review`，建议补可检索 PDF 或 OCR 文本层。
+- 无主参考 / 多候选无法区分：任务级 `needs_human_review`，标注无主文件，结束正式核查；请用户在前端指定主文件或补传后重跑。
+- 扫描件无法读字：分类/字段标 low，finding 用 `UNREADABLE` / `needs_human_review`，建议补可检索 PDF。
 - 规则与地方目录不一致：以**当前加载 JSON**为准，在报告中提示「实际归档以建设单位/当地要求为准，规则可替换」。
 - 隐私：不把身份证号、手机号、完整签名图片写入报告正文；需要提及签署时写「已见××签署栏」即可。
 

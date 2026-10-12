@@ -41,8 +41,8 @@ export const AGNES_PROFILE = process.env.AGNES_PROFILE || 'local-dev'
 export const PORT = Number(process.env.PORT || 8787)
 
 /** 允许日期型目录名（如 2026_10_12_121230）及既有 demo id；禁止路径穿越与非法字符 */
-export function assertCaseId(id: string): string {
-  const s = String(id || '').trim()
+export function assertCaseId(id: unknown): string {
+  const s = String(Array.isArray(id) ? id[0] : id || '').trim()
   if (!s || s.length > 96) {
     throw Object.assign(new Error('非法工程 ID'), { status: 400 })
   }
