@@ -1,4 +1,5 @@
 import type {
+  AuditDetail,
   PrimaryReference,
   PrimarySelection,
   ProjectFile,
@@ -247,6 +248,26 @@ export async function apiGetFindings(caseId: string) {
     primarySelection?: PrimarySelection | null
     primary_status?: string
   }>
+}
+
+/** Round D：fields.json / field_consensus.json / evidence.json */
+export async function apiGetAuditDetail(caseId: string): Promise<AuditDetail> {
+  const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}/audit-detail`)
+  if (!res.ok) throw new Error(await parseError(res))
+  return res.json() as Promise<AuditDetail>
+}
+
+/** PDF 等原文件预览 URL；page 可选（浏览器 PDF 查看器 #page=N） */
+export function caseFileRawUrl(
+  caseId: string,
+  relativePath: string,
+  page?: number | null,
+): string {
+  let rel = relativePath.replace(/\\/g, '/')
+  while (rel.startsWith('files/')) rel = rel.slice('files/'.length)
+  const base = `/api/cases/${encodeURIComponent(caseId)}/files/raw?path=${encodeURIComponent(rel)}`
+  if (page != null && page > 0) return `${base}#page=${page}`
+  return base
 }
 
 /** 设定或清空主参考；relativePath 为 files/ 下相对路径，null 清空 */

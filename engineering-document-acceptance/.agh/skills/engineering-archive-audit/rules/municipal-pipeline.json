@@ -1,7 +1,7 @@
 {
   "profile_id": "municipal-pipeline",
   "project_type": "市政管线工程",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "basis_note": "可配置清单，结构对齐 GB/T 50328 地下管线归档范围（B.0.3）及地方公开目录（韶关档案编制指南附录 D、江门统一目录第三部分管线工程、地下管线工程资料管理技术规程）。非某一地市/专业管线全文照录；给水/排水/燃气/电力/电信等可用 aliases 兼容。参考 PDF 见 reference/municipal-pipeline/ 与 reference/archive-catalogs/。",
   "manifest_fields": [
     {
@@ -32,28 +32,32 @@
       "name": "建设单位",
       "type": "organization",
       "required": true,
-      "consistency": "scoped"
+      "consistency": "global",
+      "consistency_note": "参建主体：多文种共有，有值即参与全局比对"
     },
     {
       "key": "contractor",
       "name": "施工单位",
       "type": "organization",
       "required": true,
-      "consistency": "scoped"
+      "consistency": "global",
+      "consistency_note": "参建主体：多文种共有，有值即参与全局比对"
     },
     {
       "key": "supervisor",
       "name": "监理单位",
       "type": "organization",
       "required": true,
-      "consistency": "scoped"
+      "consistency": "global",
+      "consistency_note": "参建主体：多文种共有，有值即参与全局比对"
     },
     {
       "key": "designer",
       "name": "设计单位",
       "type": "organization",
       "required": false,
-      "consistency": "scoped"
+      "consistency": "global",
+      "consistency_note": "参建主体：多文种共有，有值即参与全局比对"
     },
     {
       "key": "address",
@@ -66,21 +70,24 @@
         "管线位置",
         "管线起讫点"
       ],
-      "consistency": "scoped"
+      "consistency": "global",
+      "consistency_note": "工程地点：多文种共有，有值即参与全局比对"
     },
     {
       "key": "start_date",
       "name": "开工日期",
       "type": "date",
       "required": false,
-      "consistency": "scoped"
+      "consistency": "global",
+      "consistency_note": "关键日期：多文种记载，有值即参与全局比对"
     },
     {
       "key": "finish_date",
       "name": "竣工日期",
       "type": "date",
       "required": false,
-      "consistency": "scoped"
+      "consistency": "global",
+      "consistency_note": "关键日期：多文种记载，有值即参与全局比对"
     },
     {
       "key": "contract_amount",
@@ -92,7 +99,8 @@
         "合同价格",
         "合同金额（元）"
       ],
-      "consistency": "scoped"
+      "consistency": "scoped",
+      "consistency_note": "金额语义依赖合同/竣工验收类；过程资料不适用（即使页眉印有金额）"
     }
   ],
   "primary_reference": {
@@ -345,70 +353,6 @@
       "type": "field_scope",
       "scopes": [
         {
-          "field": "owner",
-          "documents": [
-            "建筑工程施工许可证",
-            "施工许可证",
-            "施工合同",
-            "监理合同",
-            "工程竣工验收报告"
-          ]
-        },
-        {
-          "field": "contractor",
-          "documents": [
-            "建筑工程施工许可证",
-            "施工许可证",
-            "施工合同",
-            "施工单位工程竣工报告",
-            "工程竣工验收报告"
-          ]
-        },
-        {
-          "field": "supervisor",
-          "documents": [
-            "监理合同",
-            "监理规划",
-            "工程质量评估报告",
-            "监理单位质量评估报告"
-          ]
-        },
-        {
-          "field": "designer",
-          "documents": [
-            "建筑工程施工许可证",
-            "施工许可证",
-            "设计单位质量检查报告",
-            "工程竣工验收报告"
-          ]
-        },
-        {
-          "field": "address",
-          "documents": [
-            "建筑工程施工许可证",
-            "施工许可证",
-            "施工合同",
-            "工程竣工验收报告",
-            "竣工测量成果"
-          ]
-        },
-        {
-          "field": "start_date",
-          "documents": [
-            "建筑工程施工许可证",
-            "施工许可证",
-            "施工合同",
-            "施工单位工程竣工报告"
-          ]
-        },
-        {
-          "field": "finish_date",
-          "documents": [
-            "施工单位工程竣工报告",
-            "工程竣工验收报告"
-          ]
-        },
-        {
           "field": "contract_amount",
           "documents": [
             "施工合同",
@@ -417,7 +361,7 @@
           ]
         }
       ],
-      "note": "consistency=global 不配 documents；scoped 见 scopes"
+      "note": "global 字段不配 documents；仅 contract_amount 等 scoped 字段限制使用文件类别"
     },
     {
       "rule_id": "R-002",

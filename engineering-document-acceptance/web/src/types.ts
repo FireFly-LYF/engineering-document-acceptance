@@ -73,6 +73,110 @@ export interface PrimarySelection {
   primary?: PrimaryReference | null
 }
 
+/** 字段候选（fields.json candidates[]） */
+export interface FieldCandidate {
+  field_key?: string
+  name?: string
+  value?: string | null
+  page?: number | null
+  evidence?: string | null
+  source?: string
+  confidence?: string
+  bbox?: unknown
+}
+
+/** 单文件字段抽取结果 */
+export interface FileFieldsEntry {
+  page_count?: number
+  candidates?: FieldCandidate[]
+  summary?: Record<string, string>
+  unreadable?: boolean
+  unsupported_format?: boolean
+}
+
+export interface FieldsPayload {
+  generated_by?: string
+  generated_at?: string
+  note?: string
+  files?: Record<string, FileFieldsEntry>
+}
+
+/** 共识中各文件取值 */
+export interface ConsensusValueByFile {
+  file_id: string
+  file_name?: string
+  value?: string | null
+  page?: number | null
+  evidence?: string | null
+  applicable: boolean
+  reason?: string
+  status?: string
+  out_of_scope_value?: string | null
+}
+
+export interface FieldConsensusEntry {
+  field_key: string
+  field_name: string
+  consistency?: string
+  manifest_value?: string | null
+  status: string
+  values_by_file: ConsensusValueByFile[]
+  rule_ids?: string[]
+  reason?: string
+  applicable_value_count?: number
+  distinct_values?: string[]
+}
+
+export interface FieldConsensusPayload {
+  fields?: FieldConsensusEntry[]
+  rule_findings?: RuleFindingItem[]
+  conflicts?: unknown[]
+  excluded_misfiled?: string[]
+  note?: string
+  generated_by?: string
+}
+
+/** findings 中 RULE 条目 / consensus.rule_findings */
+export interface RuleFindingItem {
+  code?: string
+  name?: string
+  status?: string
+  severity?: string
+  reason?: string
+  suggestion?: string
+  field?: string
+  field_name?: string
+  rule_ids?: string[]
+  consistency?: string
+  matched_file?: string
+  similar_files?: string[]
+}
+
+export interface EvidenceItem {
+  file_id?: string
+  field_key?: string
+  name?: string
+  value?: string | null
+  page?: number | null
+  evidence?: string | null
+  source?: string
+  confidence?: string
+  bbox?: unknown
+}
+
+export interface EvidencePayload {
+  items?: EvidenceItem[]
+  generated_by?: string
+}
+
+/** Round D 字段/共识/证据 */
+export interface AuditDetail {
+  ready: boolean
+  fields?: FieldsPayload | null
+  field_consensus?: FieldConsensusPayload | null
+  evidence?: EvidencePayload | null
+}
+
 export interface Project {
   id: string
   userId: string
@@ -94,6 +198,10 @@ export interface Project {
   /** prepare 选择结果：selected / no_primary */
   primarySelectionStatus?: PrimarySelectionStatus
   primarySelection?: PrimarySelection | null
+  /** Round D：字段级 / 规则级产物 */
+  auditDetail?: AuditDetail | null
+  /** findings.items 缓存（规则列表兜底） */
+  findingItems?: RuleFindingItem[]
   /** AGH 会话深链 */
   aghUrl?: string
   aghSessionId?: string

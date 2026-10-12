@@ -2,15 +2,27 @@
 
 每轮更新以独立提交追加到 `main`。已发布提交保留，版本 tag 指向对应快照。
 
-## v2.0.0-c2（未打 tag）
+## v2.0.0-d1b
+
+- 按 `2026_10_12_141058` 实测重划字段一致性：参建主体/地址/开竣工日期改为 `global`；仅 `contract_amount` 保持 `scoped`（避免同值被误标「不属于此类文件」）。三套 rules 同步。
+
+## v2.0.0-d1
+
+- D1：前端消费 `fields` / `field_consensus` / findings 规则级结果；核查面板增加字段比较、规则结果、选中文件字段；三种空态（不适用/未提取到/字段冲突）；页码可跳转 PDF 预览（`#page=N`）。服务端新增 `/audit-detail` 与 `/files/raw`。
+
+## v2.0.0-c3
+
+- C3：材料完整性仍按 `required_documents`；错传不计入已提供、不进字段共识；编号重复 + 正文指纹/高度相似重复；不可读/非 PDF 标 `UNREADABLE`/`UNSUPPORTED`。
+
+## v2.0.0-c2
 
 - C2：R-001/R-002/R-003 字段适用范围与一致性；`field_consensus.json`；不适用 `applicable=false`。R-003 按适用文件有值覆盖率 `min_coverage`（默认 25%）决定是否互比。
 
-## v2.0.0-c1（未打 tag）
+## v2.0.0-c1
 
 - C1：PDF 全文逐页抽取字段候选（去掉只读前 2 页）；`fields.json` 含 candidates/summary，新增 `evidence.json`；同一字段多次出现全部保留。多格式不做，非 PDF 标 `UNSUPPORTED`。
 
-## v2.0.0-b2（未打 tag）
+## v2.0.0-b2
 
 - B2：选中主参考后仅从该文件按 `manifest_fields` 写入 `manifest.fields`（`value`/`page`/`evidence`）；缺值保持 null，禁止用其它文件补齐；任务 `project_name` 与 `fields.project_name` 分离。
 

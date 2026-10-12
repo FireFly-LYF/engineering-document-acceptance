@@ -40,6 +40,8 @@ export function FileTree({
   extraFolders = [],
   disabled,
   primaryReference,
+  selectedFileId,
+  onSelectFile,
   onRenameFile,
   onMoveFile,
   onDeleteFile,
@@ -54,6 +56,8 @@ export function FileTree({
   extraFolders?: string[]
   disabled?: boolean
   primaryReference?: PrimaryReference | null
+  selectedFileId?: string | null
+  onSelectFile?: (file: ProjectFile) => void
   onRenameFile: (fileId: string, newName: string) => void
   onMoveFile: (fileId: string, targetFolder: string) => void
   onDeleteFile: (fileId: string) => void
@@ -199,8 +203,14 @@ export function FileTree({
                       const fileMenu = `file:${f.id}`
                       const isPrimary =
                         primaryRel != null && f.relativePath.replace(/\\/g, '/') === primaryRel
+                      const selected = selectedFileId === f.id
                       return (
-                        <div className="file-row" key={f.id} title={f.annotation?.reason}>
+                        <div
+                          className={`file-row${selected ? ' selected' : ''}${onSelectFile ? ' selectable' : ''}`}
+                          key={f.id}
+                          title={f.annotation?.reason}
+                          onClick={() => onSelectFile?.(f)}
+                        >
                           <FileText size={16} color={isPrimary ? '#c4784a' : '#5c6d78'} />
                           <div style={{ minWidth: 0 }}>
                             <div className="title">
@@ -215,7 +225,7 @@ export function FileTree({
                               {formatBytes(f.size)}
                             </div>
                           </div>
-                          <div className="row-end">
+                          <div className="row-end" onClick={(e) => e.stopPropagation()}>
                             {isPrimary && (
                               <span className="badge copper" title="主参考文件">
                                 主参考

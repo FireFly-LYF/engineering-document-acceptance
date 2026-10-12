@@ -11,10 +11,12 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from collections import defaultdict
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 from pathlib import Path
 
 try:
@@ -854,6 +856,60 @@ def in_project_rows(file_rows: list[dict]) -> list[dict]:
     return [r for r in file_rows if not r.get("misfiled")]
 
 
+_WS_RE = re.compile(r"\s+")
+
+
+def content_fingerprint(text: str) -> str | None:
+    """Short sha256 of whitespace-stripped body; None if too short to compare."""
+    norm = _WS_RE.sub("", (text or "").strip())
+    if len(norm) < 80:
+        return None
+    digest = hashlib.sha256(norm[:8000].encode("utf-8")).hexdigest()
+    return digest[:16]
+
+
+def find_content_duplicate_groups(rows: list[dict]) -> list[list[str]]:
+    """C3 heuristic: exact content fingerprint, then high text_head similarity."""
+    by_fp: dict[str, list[str]] = defaultdict(list)
+    comparable: list[dict] = []
+    for row in rows:
+        if row.get("unreadable") or row.get("unsupported_format") or row.get("misfiled"):
+            continue
+        fp = row.get("content_fingerprint")
+        if not fp:
+            continue
+        by_fp[str(fp)].append(row["rel_path"])
+        comparable.append(row)
+
+    groups = [paths for paths in by_fp.values() if len(paths) >= 2]
+    in_group = {p for g in groups for p in g}
+    singles = [r for r in comparable if r["rel_path"] not in in_group]
+    used: set[str] = set()
+    for i, a in enumerate(singles):
+        if a["rel_path"] in used:
+            continue
+        na = _WS_RE.sub("", (a.get("text_head") or "")[:1200])
+        if len(na) < 80:
+            continue
+        cluster = [a["rel_path"]]
+        for b in singles[i + 1 :]:
+            if b["rel_path"] in used:
+                continue
+            nb = _WS_RE.sub("", (b.get("text_head") or "")[:1200])
+            if len(nb) < 80:
+                continue
+            ratio = len(na) / max(len(nb), 1)
+            if ratio < 0.7 or ratio > 1.43:
+                continue
+            if SequenceMatcher(None, na[:2000], nb[:2000]).ratio() >= 0.92:
+                cluster.append(b["rel_path"])
+                used.add(b["rel_path"])
+        if len(cluster) >= 2:
+            used.add(a["rel_path"])
+            groups.append(cluster)
+    return groups
+
+
 def build_findings(rules: dict, file_rows: list[dict], consensus: dict) -> list[dict]:
     findings: list[dict] = []
     target_rows = in_project_rows(file_rows)
@@ -1001,7 +1057,8 @@ def build_findings(rules: dict, file_rows: list[dict], consensus: dict) -> list[
             }
         )
 
-    # duplicates by 文件编号
+    # duplicates by 文件编号（仅本工程）
+    covered_dup_sets: list[frozenset[str]] = []
     for no, paths in by_file_no.items():
         if len(paths) >= 2:
             findings.append(
@@ -1013,8 +1070,29 @@ def build_findings(rules: dict, file_rows: list[dict], consensus: dict) -> list[
                     "reason": f"同一文件编号出现在多份本项目文件：{short_names(paths)}",
                     "similar_files": paths,
                     "suggestion": "确认是否重复归档",
+                    "dup_kind": "file_no",
                 }
             )
+            covered_dup_sets.append(frozenset(paths))
+
+    # duplicates by content fingerprint / high text similarity（C3）
+    for paths in find_content_duplicate_groups(target_rows):
+        key = frozenset(paths)
+        if any(key <= c or c <= key for c in covered_dup_sets):
+            continue
+        findings.append(
+            {
+                "code": "DUP",
+                "name": "内容高度相似重复",
+                "status": "suspect_duplicate_or_misfiled",
+                "severity": "warning",
+                "reason": f"本项目多份文件正文指纹或正文高度相似：{short_names(paths)}",
+                "similar_files": paths,
+                "suggestion": "确认是否重复归档或误传副本",
+                "dup_kind": "content",
+            }
+        )
+        covered_dup_sets.append(key)
 
     # in-project field conflicts only (misfiled already excluded from consensus)
     for field, info in consensus.get("冲突", {}).items():
@@ -1025,7 +1103,7 @@ def build_findings(rules: dict, file_rows: list[dict], consensus: dict) -> list[
                 "status": "needs_human_review",
                 "severity": "warning",
                 "reason": f"本项目多文件取值不一致：{format_value_map(info.get('values', {}))}",
-                "suggestion": "以合同/manifest 锚值为准并人工确认",
+                "suggestion": "请以主文件参考值为准核对，并人工确认",
                 "field": field,
                 "scope": "in_project",
             }
@@ -1289,7 +1367,7 @@ def build_field_consistency(
             else:
                 if not scope_docs:
                     applicable = False
-                    reason_na = "规则未配置该字段的使用文件类别"
+                    reason_na = "该字段未配置适用材料类别"
                 elif file_matches_scope_docs(row, scope_docs):
                     applicable = True
                     reason_na = None
@@ -1334,8 +1412,8 @@ def build_field_consistency(
             if mismatched:
                 status = "needs_human_review"
                 reason = (
-                    f"适用文件中存在与 manifest 不一致的「{name_zh}」"
-                    f"（manifest={manifest_raw}；冲突 "
+                    f"适用材料中的「{name_zh}」与参考值不一致"
+                    f"（参考值={manifest_raw}；冲突 "
                     + "、".join(
                         f"{Path(e['file_id']).name}={e.get('value')}"
                         for _, _, e in mismatched[:4]
@@ -1344,10 +1422,10 @@ def build_field_consistency(
                 )
             elif applicable_values:
                 status = "provided"
-                reason = f"适用且有值文件均与 manifest「{name_zh}」一致"
+                reason = f"适用材料中的「{name_zh}」均与参考值一致"
             else:
                 status = "provided"
-                reason = f"manifest 有「{name_zh}」，适用文件暂无抽出值（不判缺失）"
+                reason = f"参考值有「{name_zh}」，适用材料暂无抽出值（不判缺失）"
         else:
             # R-003: ≥min_coverage of applicable files have values → cross-compare
             applicable_file_count = sum(
@@ -1362,29 +1440,29 @@ def build_field_consistency(
                 if len(distinct) > 1:
                     status = "needs_human_review"
                     reason = (
-                        f"manifest 无「{name_zh}」，"
-                        f"{value_count}/{applicable_file_count} 个适用文件有值"
+                        f"参考值无「{name_zh}」，"
+                        f"{value_count}/{applicable_file_count} 份适用材料有值"
                         f"（≥{coverage_pct}%）且取值不一致："
                         + "；".join(distinct[:5])
                     )
                 else:
                     status = "provided"
                     reason = (
-                        f"manifest 无「{name_zh}」，"
-                        f"{value_count}/{applicable_file_count} 个适用文件有值"
+                        f"参考值无「{name_zh}」，"
+                        f"{value_count}/{applicable_file_count} 份适用材料有值"
                         f"（≥{coverage_pct}%）且取值一致"
                     )
             elif value_count > 0:
                 rule_ids.append("R-003")
                 status = "provided"
                 reason = (
-                    f"manifest 无「{name_zh}」，仅 "
-                    f"{value_count}/{applicable_file_count} 个适用文件有值"
+                    f"参考值无「{name_zh}」，仅 "
+                    f"{value_count}/{applicable_file_count} 份适用材料有值"
                     f"（未达 {coverage_pct}%），记录候选、不判冲突"
                 )
             else:
                 status = "provided"
-                reason = f"无适用文件提供「{name_zh}」，跳过一致性比较"
+                reason = f"无适用材料提供「{name_zh}」，跳过一致性比较"
 
         result = {
             "field_key": field_key,
@@ -1409,11 +1487,17 @@ def build_field_consistency(
                     "severity": "warning",
                     "reason": reason,
                     "suggestion": (
-                        "以主参考 manifest 为准核对使用文件类别；"
-                        if manifest_norm
-                        else "在使用文件类别间核对并人工确认；"
-                    )
-                    + ("全局字段" if consistency == "global" else "文件类别内字段"),
+                        (
+                            "请以主文件参考值为准，核对相关材料中的该字段。"
+                            if manifest_norm
+                            else "请在相关材料之间核对取值并人工确认。"
+                        )
+                        + (
+                            "该字段在全部材料中应一致。"
+                            if consistency == "global"
+                            else "该字段仅在指定材料类别内比较。"
+                        )
+                    ),
                     "field": field_key,
                     "field_name": name_zh,
                     "rule_ids": rule_ids,
@@ -1622,6 +1706,7 @@ def run(case_dir: Path, rules_path: Path) -> Path:
             "candidates": candidates,
             "page_count": page_count,
             "text_head": text[:1200],
+            "content_fingerprint": content_fingerprint(text),
             "unreadable": unreadable,
             "unsupported_format": unsupported_format,
         }
@@ -1699,6 +1784,7 @@ def run(case_dir: Path, rules_path: Path) -> Path:
                 "size_bytes": r["size_bytes"],
                 "misfiled": bool(r.get("misfiled")),
                 "unreadable": bool(r.get("unreadable")),
+                "content_fingerprint": r.get("content_fingerprint"),
             }
             for r in file_rows
         ],

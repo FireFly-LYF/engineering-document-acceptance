@@ -588,6 +588,15 @@ a {
   border-color: var(--line);
 }
 
+.file-row.selectable {
+  cursor: pointer;
+}
+
+.file-row.selected {
+  border-color: rgba(196, 120, 74, 0.55);
+  background: rgba(196, 120, 74, 0.1);
+}
+
 .folder-row .title,
 .file-row .title {
   font-size: 0.88rem;
@@ -788,6 +797,279 @@ code {
     opacity: 1;
     transform: none;
   }
+}
+
+.audit-workbench .panel-bd {
+  padding-top: 12px;
+}
+
+.audit-results {
+  min-height: 0;
+}
+
+.audit-results-split {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.audit-results-split.with-preview {
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+}
+
+@media (max-width: 1100px) {
+  .audit-results-split.with-preview {
+    grid-template-columns: 1fr;
+  }
+}
+
+.audit-results-main {
+  min-width: 0;
+}
+
+.empty-inline {
+  padding: 14px 4px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.result-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.result-tabs button {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--muted);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.result-tabs button.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #f3ebe1;
+}
+
+.result-pane {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 10px;
+  max-height: min(62vh, 720px);
+  overflow: auto;
+  align-content: start;
+}
+
+.result-pane:has(.result-table) {
+  grid-template-columns: 1fr;
+}
+
+.result-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.55);
+  overflow: hidden;
+}
+
+.result-card-hd {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(12, 27, 36, 0.06);
+}
+
+.result-card-bd {
+  padding: 10px 12px 12px;
+}
+
+.result-card .reason {
+  margin: 0 0 8px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.result-card .kv {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  margin-bottom: 8px;
+  font-size: 0.82rem;
+}
+
+.result-card .kv span {
+  color: var(--muted);
+  min-width: 4.5em;
+}
+
+.result-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 0.78rem;
+}
+
+.result-table th,
+.result-table td {
+  text-align: center;
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(12, 27, 36, 0.06);
+  vertical-align: middle;
+  word-break: break-word;
+}
+
+/* 字段比较：文件 36% 固定；收窄取值/页使二者左移，加宽状态拉开间距 */
+.result-table--compare th:nth-child(1),
+.result-table--compare td:nth-child(1) {
+  width: 36%;
+}
+
+.result-table--compare th:nth-child(2),
+.result-table--compare td:nth-child(2) {
+  width: 32%;
+}
+
+.result-table--compare th:nth-child(3),
+.result-table--compare td:nth-child(3) {
+  width: 10%;
+}
+
+.result-table--compare th:nth-child(4),
+.result-table--compare td:nth-child(4) {
+  width: 22%;
+}
+
+/* 文件字段：与字段比较同布局 */
+.result-table--file th:nth-child(1),
+.result-table--file td:nth-child(1) {
+  width: 36%;
+}
+
+.result-table--file th:nth-child(2),
+.result-table--file td:nth-child(2) {
+  width: 32%;
+}
+
+.result-table--file th:nth-child(3),
+.result-table--file td:nth-child(3) {
+  width: 10%;
+}
+
+.result-table--file th:nth-child(4),
+.result-table--file td:nth-child(4) {
+  width: 22%;
+}
+
+/* 规则结果：字段/状态收窄，说明占主宽并左对齐 */
+.result-table--rules th:nth-child(1),
+.result-table--rules td:nth-child(1) {
+  width: 16%;
+}
+
+.result-table--rules th:nth-child(2),
+.result-table--rules td:nth-child(2) {
+  width: 12%;
+}
+
+.result-table--rules th:nth-child(3),
+.result-table--rules td:nth-child(3) {
+  width: 72%;
+}
+
+.result-table--rules .rule-desc {
+  text-align: left;
+  line-height: 1.5;
+}
+
+.result-table--rules .rule-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.result-table th {
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.page-jump,
+.linkish {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: #8a4a28;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.muted.tiny {
+  font-size: 0.72rem;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.candidate-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.pdf-preview {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  min-height: min(62vh, 720px);
+}
+
+.pdf-preview-hd {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+  background: rgba(244, 239, 230, 0.7);
+  flex-shrink: 0;
+}
+
+.pdf-preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.pdf-preview iframe {
+  width: 100%;
+  flex: 1;
+  min-height: 420px;
+  border: 0;
+  display: block;
 }
 
 @keyframes fade {

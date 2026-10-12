@@ -13,6 +13,7 @@ import {
   listCaseFiles,
   listExtraFolders,
   moveFileToFolder,
+  readAuditDetail,
   readFindings,
   readManifest,
   readPrimarySelection,
@@ -31,7 +32,7 @@ import {
   startAghAudit,
   warmAghSessionCache,
 } from './agh.js'
-import { PORT, assertCaseId, safeRelPath } from './paths.js'
+import { PORT, assertCaseId, resolveUnderFiles, safeRelPath } from './paths.js'
 
 const app = express()
 const upload = multer({
@@ -293,6 +294,30 @@ app.get('/api/cases/:id/audit/status', async (req, res) => {
   try {
     const id = assertCaseId(req.params.id)
     res.json(getAghAuditStatus(id))
+  } catch (e) {
+    sendError(res, e)
+  }
+})
+
+/** Round D：fields / field_consensus / evidence */
+app.get('/api/cases/:id/audit-detail', async (req, res) => {
+  try {
+    const id = assertCaseId(req.params.id)
+    res.json(await readAuditDetail(id))
+  } catch (e) {
+    sendError(res, e)
+  }
+})
+
+/** 预览 files/ 下原文件；?path=相对路径（可含 files/ 前缀） */
+app.get('/api/cases/:id/files/raw', async (req, res) => {
+  try {
+    const id = assertCaseId(req.params.id)
+    const rel = String(req.query.path || '')
+    const { abs } = resolveUnderFiles(id, rel)
+    res.sendFile(abs, (err) => {
+      if (err && !res.headersSent) sendError(res, err)
+    })
   } catch (e) {
     sendError(res, e)
   }

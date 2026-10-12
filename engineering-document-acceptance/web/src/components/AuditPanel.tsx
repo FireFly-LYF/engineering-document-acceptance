@@ -89,12 +89,29 @@ export function AuditPanel({
             color: 'var(--muted)',
           }}
         >
-          <div style={{ color: 'var(--text, inherit)', fontWeight: 600, marginBottom: 4 }}>
-            主参考文件
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 12,
+              marginBottom: 4,
+            }}
+          >
+            <div style={{ color: 'var(--text, inherit)', fontWeight: 600 }}>
+              主参考文件
+            </div>
+            {project.primarySelectionStatus === 'no_primary' ? (
+              <span className="badge warn">无主文件</span>
+            ) : project.primaryReference?.source === 'user' ? (
+              <span className="badge copper">用户选择</span>
+            ) : project.primaryReference?.source === 'auto' ? (
+              <span className="badge copper">自动选择</span>
+            ) : null}
           </div>
           {project.primarySelectionStatus === 'no_primary' ? (
             <span style={{ color: '#9a3d30' }}>
-              无主文件 — 需人工指定或补传后重跑；未生成正式核查结论。
+              需人工指定或补传后重跑；未生成正式核查结论。
               {project.primarySelection?.reason
                 ? `（${project.primarySelection.reason}）`
                 : ''}
@@ -105,11 +122,6 @@ export function AuditPanel({
               {project.primaryReference.document_code
                 ? ` · ${project.primaryReference.document_code}`
                 : ''}
-              {project.primaryReference.source === 'user'
-                ? '（用户指定）'
-                : project.primaryReference.source === 'auto'
-                  ? '（自动选择）'
-                  : ''}
             </span>
           ) : (
             <span>未指定。可在材料目录设为主参考，或由核查脚本自动选择。</span>

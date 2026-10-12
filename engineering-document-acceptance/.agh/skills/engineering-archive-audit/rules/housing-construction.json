@@ -1,8 +1,8 @@
 {
   "profile_id": "housing-construction",
   "project_type": "房屋建筑工程",
-  "version": "0.2.0",
-  "basis_note": "示例可配置清单",
+  "version": "0.3.0",
+  "basis_note": "示例可配置清单。global/scoped 按 demo 实测重划：参建主体/地址/开竣工日期为全局身份字段；仅合同金额保持 scoped。",
   "manifest_fields": [
     {
       "key": "project_name",
@@ -27,28 +27,32 @@
       "name": "建设单位",
       "type": "organization",
       "required": true,
-      "consistency": "scoped"
+      "consistency": "global",
+      "consistency_note": "参建主体：多文种共有，有值即参与全局比对"
     },
     {
       "key": "contractor",
       "name": "施工单位",
       "type": "organization",
       "required": true,
-      "consistency": "scoped"
+      "consistency": "global",
+      "consistency_note": "参建主体：多文种共有，有值即参与全局比对"
     },
     {
       "key": "supervisor",
       "name": "监理单位",
       "type": "organization",
       "required": true,
-      "consistency": "scoped"
+      "consistency": "global",
+      "consistency_note": "参建主体：多文种共有，有值即参与全局比对"
     },
     {
       "key": "designer",
       "name": "设计单位",
       "type": "organization",
       "required": false,
-      "consistency": "scoped"
+      "consistency": "global",
+      "consistency_note": "参建主体：多文种共有，有值即参与全局比对"
     },
     {
       "key": "address",
@@ -56,21 +60,24 @@
       "type": "text",
       "required": false,
       "aliases": ["建设地点", "建设地址", "工程地点", "建设位置"],
-      "consistency": "scoped"
+      "consistency": "global",
+      "consistency_note": "工程地点：多文种共有，有值即参与全局比对"
     },
     {
       "key": "start_date",
       "name": "开工日期",
       "type": "date",
       "required": false,
-      "consistency": "scoped"
+      "consistency": "global",
+      "consistency_note": "关键日期：多文种记载，有值即参与全局比对"
     },
     {
       "key": "finish_date",
       "name": "竣工日期",
       "type": "date",
       "required": false,
-      "consistency": "scoped"
+      "consistency": "global",
+      "consistency_note": "关键日期：多文种记载，有值即参与全局比对"
     },
     {
       "key": "contract_amount",
@@ -79,7 +86,7 @@
       "required": false,
       "aliases": ["签约合同价", "合同价格", "合同金额（元）"],
       "consistency": "scoped",
-      "consistency_note": "仅在施工合同/竣工类等使用文件类别内与 manifest 或彼此比对；监理类不适用"
+      "consistency_note": "金额语义依赖合同/竣工验收类；检验批等施工过程文件不适用（即使页眉印有金额）"
     }
   ],
   "primary_reference": {
@@ -239,71 +246,8 @@
       "rule_id": "R-001",
       "name": "字段适用范围",
       "type": "field_scope",
-      "note": "consistency=global 的字段不配 documents（全库有值即适用）；scoped 字段仅在下列使用文件类别中参与 R-002/R-003",
+      "note": "global 字段不配 documents；仅 contract_amount 等 scoped 字段限制使用文件类别",
       "scopes": [
-        {
-          "field": "owner",
-          "documents": [
-            "建筑工程施工许可证",
-            "施工许可证",
-            "施工合同",
-            "监理合同",
-            "工程竣工验收报告"
-          ]
-        },
-        {
-          "field": "contractor",
-          "documents": [
-            "建筑工程施工许可证",
-            "施工许可证",
-            "施工合同",
-            "施工单位工程竣工报告",
-            "工程竣工验收报告"
-          ]
-        },
-        {
-          "field": "supervisor",
-          "documents": [
-            "监理合同",
-            "监理规划",
-            "监理评估报告",
-            "工程质量评估报告"
-          ]
-        },
-        {
-          "field": "designer",
-          "documents": [
-            "建筑工程施工许可证",
-            "施工许可证",
-            "设计单位工程质量检查报告",
-            "工程竣工验收报告"
-          ]
-        },
-        {
-          "field": "address",
-          "documents": [
-            "建筑工程施工许可证",
-            "施工许可证",
-            "施工合同",
-            "工程竣工验收报告"
-          ]
-        },
-        {
-          "field": "start_date",
-          "documents": [
-            "建筑工程施工许可证",
-            "施工许可证",
-            "施工合同",
-            "施工单位工程竣工报告"
-          ]
-        },
-        {
-          "field": "finish_date",
-          "documents": [
-            "施工单位工程竣工报告",
-            "工程竣工验收报告"
-          ]
-        },
         {
           "field": "contract_amount",
           "documents": [

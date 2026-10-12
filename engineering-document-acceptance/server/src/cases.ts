@@ -402,9 +402,43 @@ export async function readFindings(id: string) {
       primary_reference?: PrimaryReference | null
       task_status?: string
       formal_conclusion?: boolean
+      field_rule_results?: number
     }
   } catch {
     return null
+  }
+}
+
+/** 读取 _work 下 JSON；不存在返回 null */
+export async function readWorkJson<T = unknown>(
+  id: string,
+  fileName: string,
+): Promise<T | null> {
+  const safe = String(fileName || '').replace(/\\/g, '/').split('/').pop() || ''
+  if (!safe || safe.includes('..') || !safe.endsWith('.json')) {
+    throw Object.assign(new Error(`非法工作区文件名: ${fileName}`), { status: 400 })
+  }
+  const p = path.join(workDir(id), safe)
+  try {
+    const raw = await fs.readFile(p, 'utf8')
+    return JSON.parse(raw) as T
+  } catch {
+    return null
+  }
+}
+
+/** Round D：字段 / 共识 / 证据一并返回 */
+export async function readAuditDetail(id: string) {
+  const [fields, field_consensus, evidence] = await Promise.all([
+    readWorkJson(id, 'fields.json'),
+    readWorkJson(id, 'field_consensus.json'),
+    readWorkJson(id, 'evidence.json'),
+  ])
+  return {
+    ready: Boolean(fields || field_consensus),
+    fields,
+    field_consensus,
+    evidence,
   }
 }
 

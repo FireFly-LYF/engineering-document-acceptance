@@ -7,6 +7,7 @@ import {
   Plus,
 } from 'lucide-react'
 import { AuditPanel } from './components/AuditPanel'
+import { AuditResults } from './components/AuditResults'
 import { FileTree } from './components/FileTree'
 import { IdentityGate } from './components/IdentityGate'
 import { NewProjectModal } from './components/NewProjectModal'
@@ -19,6 +20,7 @@ import {
   apiCreateFolder,
   apiDeleteFile,
   apiDeleteFolder,
+  apiGetAuditDetail,
   apiGetConfig,
   apiGetFindings,
   apiGetManifest,
@@ -32,6 +34,7 @@ import {
   apiStatementStatus,
 } from './lib/api'
 import { annotateFromFindings, type WorkFinding } from './lib/auditMock'
+import { normalizeCaseFilePath } from './lib/auditPaths'
 import {
   ROOT_FOLDER,
   mergeFiles,
@@ -56,6 +59,7 @@ import type {
   Project,
   ProjectFile,
   ProjectType,
+  RuleFindingItem,
 } from './types'
 
 function listedToProjectFiles(
@@ -85,6 +89,7 @@ function App() {
   const [renameDraft, setRenameDraft] = useState('')
   const [toast, setToast] = useState<string | null>(null)
   const [findingsHint, setFindingsHint] = useState<string | null>(null)
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null)
   const [aghWebOrigin, setAghWebOrigin] = useState('http://127.0.0.1:4177')
   const [sharedAghSessionId, setSharedAghSessionId] = useState<string | null>(() => {
     try {
@@ -153,6 +158,12 @@ function App() {
   )
 
   const active = myProjects.find((p) => p.id === state.activeProjectId) || null
+  const selectedFile =
+    active?.files.find((f) => f.id === selectedFileId) || null
+
+  useEffect(() => {
+    setSelectedFileId(null)
+  }, [state.activeProjectId])
 
   function showError(message: string) {
     setToast(message)
@@ -316,6 +327,21 @@ function App() {
     )
   }
 
+  async function loadAuditDetail(projectId: string) {
+    try {
+      const detail = await apiGetAuditDetail(projectId)
+      updateProject(projectId, (p) => ({ ...p, auditDetail: detail }))
+    } catch {
+      /* 无 _work 产物时忽略 */
+    }
+  }
+
+  useEffect(() => {
+    if (!active || active.auditStatus !== 'done') return
+    if (active.auditDetail?.ready) return
+    void loadAuditDetail(active.id)
+  }, [active?.id, active?.auditStatus, active?.auditDetail?.ready])
+
   function applyFindings(
     projectId: string,
     items: WorkFinding[],
@@ -348,6 +374,7 @@ function App() {
           ...summary,
           note,
         },
+        findingItems: items as RuleFindingItem[],
         primaryReference:
           opts?.primaryReference !== undefined
             ? opts.primaryReference
@@ -371,6 +398,7 @@ function App() {
             : 'waiting',
       }
     })
+    void loadAuditDetail(projectId)
     if (!noPrimary) startStatementPoll(projectId)
   }
 
@@ -823,6 +851,8 @@ function App() {
                   extraFolders={active.extraFolders}
                   disabled={busy}
                   primaryReference={active.primaryReference}
+                  selectedFileId={selectedFileId}
+                  onSelectFile={(file) => setSelectedFileId(file.id)}
                   onSetPrimary={(file) => void onSetPrimary(file)}
                   onClearPrimary={() => void onClearPrimary()}
                   onRenameFile={(fileId, newName) => {
@@ -908,6 +938,29 @@ function App() {
                   sharedAghUrl={sharedAghUrl}
                 />
               </div>
+
+              {(active.auditStatus === 'done' || active.auditDetail?.ready) && (
+                <div className="panel audit-workbench" style={{ animationDelay: '0.08s' }}>
+                  <div className="panel-hd">
+                    <h3>字段与规则详情</h3>
+                  </div>
+                  <div className="panel-bd">
+                    <AuditResults
+                      caseId={active.id}
+                      detail={active.auditDetail}
+                      selectedFile={selectedFile}
+                      findingItems={active.findingItems}
+                      onSelectFilePath={(rel) => {
+                        const norm = normalizeCaseFilePath(rel)
+                        const hit = active.files.find(
+                          (f) => normalizeCaseFilePath(f.relativePath) === norm,
+                        )
+                        if (hit) setSelectedFileId(hit.id)
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}

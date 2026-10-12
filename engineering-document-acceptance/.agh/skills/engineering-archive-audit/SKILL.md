@@ -66,10 +66,10 @@ engineering-document-acceptance/
 
 | 值 | 含义 |
 | --- | --- |
-| `global` | **全局一致**（如 `project_name` / `project_code`）：本工程凡有值文件均适用，与 manifest（有值时）或彼此比对 |
+| `global` | **全局一致**（工程身份 / 参建主体 / 地址 / 开竣工日期等）：本工程凡有值文件均适用，与 manifest（有值时）或彼此比对 |
 | `scoped` | **文件类别内一致**（如 `contract_amount`）：仅 R-001 `scopes[].documents` 列出的使用文件类别参与比较；其它文件 `applicable=false` |
 
-抽取仍对全部可读 PDF 进行（C1）；适用范围只约束**一致性比较**，不限制抽取。
+房屋建筑演示规则：除 `contract_amount` 外均为 `global`（避免多文种页眉同字段被误标「不属于此类文件」）。抽取仍对全部可读 PDF 进行（C1）；适用范围只约束**一致性比较**，不限制抽取。
 
 `required_documents[]` 条目最小字段：
 
@@ -206,9 +206,14 @@ ZIP：先解压到 `cases/<id>/files/` 或 `_work/extracted/`，再跑脚本。
 
 锚值：主参考写入的 `manifest.fields`（有值走 R-002；无值走 R-003）。
 
-## 4. 完整性与一致性核查层
+## 4. 完整性与一致性核查层（C3）
 
 对照已加载规则，对每个 `required_documents[]` 条目及跨文件约束产出 `_work/findings.json`。
+
+- **完整性**：仅在本工程文件（非错传）上匹配 `required_documents`；错传不计入「已提供」。
+- **归属**：文载项目名称/文件名与本项目锚值不符 → `MISFILE` / `suspect_duplicate_or_misfiled`，并排除出字段共识。
+- **重复**：本工程内同一「文件编号」→ `DUP`；另用正文 `content_fingerprint` / 正文高度相似启发式补抓副本（与编号重复去重）。
+- **不可读**：空文本/损坏 → `UNREADABLE`；非 PDF → `UNSUPPORTED`；均为 `needs_human_review`，不能认定已提供。
 
 ### 完整性核查状态（条目级 `status`）
 
