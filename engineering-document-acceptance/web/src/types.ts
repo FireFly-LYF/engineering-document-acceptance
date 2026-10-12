@@ -6,6 +6,12 @@ export type FindingStatus =
   | 'needs_human_review'
   | 'unscanned'
 
+/** 工程类型 slug；与 rules_profile / 规则文件名一致 */
+export type ProjectType =
+  | 'housing-construction'
+  | 'road-bridge'
+  | 'municipal-pipeline'
+
 export type ProjectAuditStatus = 'draft' | 'ready' | 'auditing' | 'done' | 'error'
 
 export type UploadSource = 'zip' | 'pdf' | 'folder'
@@ -53,6 +59,8 @@ export interface Project {
   id: string
   userId: string
   name: string
+  /** 工程类型（任务身份）；映射 rules_profile */
+  projectType: ProjectType
   code?: string
   batchLabel: string
   createdAt: string

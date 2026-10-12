@@ -1,16 +1,189 @@
 {
   "profile_id": "municipal-pipeline",
   "project_type": "市政管线工程",
-  "version": "0.1.0",
-  "basis_note": "占位清单：结构已预留，条目待按市政管线/地下管线公开归档目录补全。加载本文件且清单不完备时，Agent 应在报告中声明规则未完备。",
+  "version": "0.3.0",
+  "basis_note": "可配置清单，结构对齐 GB/T 50328 地下管线归档范围（B.0.3）及地方公开目录（韶关档案编制指南附录 D、江门统一目录第三部分管线工程、地下管线工程资料管理技术规程）。非某一地市/专业管线全文照录；给水/排水/燃气/电力/电信等可用 aliases 兼容。参考 PDF 见 reference/municipal-pipeline/ 与 reference/archive-catalogs/。",
+  "manifest_fields": [
+    {
+      "key": "project_name",
+      "name": "项目名称",
+      "type": "text",
+      "required": true,
+      "aliases": ["工程名称", "建设项目名称"]
+    },
+    {
+      "key": "project_code",
+      "name": "项目编号",
+      "type": "identifier",
+      "required": true,
+      "aliases": ["工程编号", "建设项目编号", "编号"]
+    },
+    {
+      "key": "owner",
+      "name": "建设单位",
+      "type": "organization",
+      "required": true
+    },
+    {
+      "key": "contractor",
+      "name": "施工单位",
+      "type": "organization",
+      "required": true
+    },
+    {
+      "key": "supervisor",
+      "name": "监理单位",
+      "type": "organization",
+      "required": true
+    },
+    {
+      "key": "designer",
+      "name": "设计单位",
+      "type": "organization",
+      "required": false
+    },
+    {
+      "key": "address",
+      "name": "工程地址",
+      "type": "text",
+      "required": false,
+      "aliases": ["建设地点", "工程地点", "管线位置", "管线起讫点"]
+    },
+    {
+      "key": "start_date",
+      "name": "开工日期",
+      "type": "date",
+      "required": false
+    },
+    {
+      "key": "finish_date",
+      "name": "竣工日期",
+      "type": "date",
+      "required": false
+    },
+    {
+      "key": "contract_amount",
+      "name": "合同金额",
+      "type": "money",
+      "required": false,
+      "aliases": ["签约合同价", "合同价格", "合同金额（元）"]
+    }
+  ],
+  "primary_reference": {
+    "code": "MP-A-02",
+    "name": "建筑工程施工许可证",
+    "aliases": ["施工许可证", "开工证", "建设工程施工许可证"]
+  },
   "required_documents": [
     {
       "code": "MP-A-01",
+      "name": "建设工程规划许可证",
+      "required": true,
+      "stage": "工程准备",
+      "category": "preparation",
+      "aliases": ["规划许可证", "建设用地规划许可证"]
+    },
+    {
+      "code": "MP-A-02",
+      "name": "建筑工程施工许可证",
+      "required": true,
+      "stage": "工程准备",
+      "category": "preparation",
+      "aliases": ["施工许可证", "开工证", "建设工程施工许可证"]
+    },
+    {
+      "code": "MP-A-03",
       "name": "施工合同",
       "required": true,
       "stage": "工程准备",
       "category": "contract",
-      "aliases": ["建设工程施工合同"]
+      "aliases": ["建设工程施工合同", "承包合同", "施工中标通知书及承包合同"]
+    },
+    {
+      "code": "MP-A-04",
+      "name": "监理合同",
+      "required": true,
+      "stage": "工程准备",
+      "category": "contract",
+      "aliases": ["委托监理合同", "监理中标通知书及委托合同", "建设工程委托监理合同"]
+    },
+    {
+      "code": "MP-B-01",
+      "name": "监理规划",
+      "required": true,
+      "stage": "监理",
+      "category": "supervision",
+      "aliases": ["监理规划书"]
+    },
+    {
+      "code": "MP-B-02",
+      "name": "监理实施细则",
+      "required": false,
+      "stage": "监理",
+      "category": "supervision",
+      "aliases": ["专业监理实施细则"]
+    },
+    {
+      "code": "MP-B-03",
+      "name": "工程质量评估报告",
+      "required": true,
+      "stage": "监理",
+      "category": "supervision",
+      "aliases": ["监理单位质量评估报告", "监理评估报告", "质量评估报告"]
+    },
+    {
+      "code": "MP-C-01",
+      "name": "施工组织设计",
+      "required": true,
+      "stage": "施工",
+      "category": "construction",
+      "aliases": ["施工组织设计方案", "施工方案", "施组"]
+    },
+    {
+      "code": "MP-C-02",
+      "name": "隐蔽工程验收记录",
+      "required": true,
+      "stage": "施工",
+      "category": "construction",
+      "aliases": ["隐蔽工程验收记录表", "隐蔽验收", "沟槽开挖复验记录"]
+    },
+    {
+      "code": "MP-C-03",
+      "name": "管道主体分部工程质量验收记录",
+      "required": true,
+      "stage": "施工",
+      "category": "construction",
+      "aliases": [
+        "管道主体分部工程验收",
+        "分部工程质量验收记录",
+        "给水工程质量验收记录",
+        "排水工程质量验收记录"
+      ]
+    },
+    {
+      "code": "MP-D-01",
+      "name": "管道功能性试验报告",
+      "required": true,
+      "stage": "材料检测",
+      "category": "material_test",
+      "aliases": [
+        "排水管（渠）道闭水试验报告",
+        "闭水试验",
+        "压力管道水压试验报告",
+        "水压试验",
+        "压力管道强度及严密性试验记录",
+        "管道通球试验记录",
+        "阀门安装强度及严密性试验记录"
+      ],
+      "notes": "按管线专业选用闭水/水压/通球等试验；至少一类功能性试验可匹配。"
+    },
+    {
+      "code": "MP-D-02",
+      "name": "材料进场报审及复试报告",
+      "required": true,
+      "stage": "材料检测",
+      "category": "material_test",
+      "aliases": ["材料复试报告", "进场验收记录", "检测报告", "管材试验报告"]
     },
     {
       "code": "MP-E-01",
@@ -18,15 +191,181 @@
       "required": true,
       "stage": "竣工验收",
       "category": "completion_acceptance",
-      "aliases": ["竣工验收报告"]
+      "aliases": [
+        "建设单位工程竣工验收报告",
+        "竣工验收报告",
+        "工程质量竣工验收报告"
+      ],
+      "notes": "正式竣工验收报告；预验收不能替代本项。"
+    },
+    {
+      "code": "MP-E-02",
+      "name": "施工单位工程竣工报告",
+      "required": true,
+      "stage": "竣工验收",
+      "category": "completion_acceptance",
+      "aliases": ["竣工报告", "施工竣工报告", "工程竣工报告"]
+    },
+    {
+      "code": "MP-E-03",
+      "name": "设计单位质量检查报告",
+      "required": true,
+      "stage": "竣工验收",
+      "category": "completion_acceptance",
+      "aliases": ["设计文件质量检查报告", "设计检查报告"]
     },
     {
       "code": "MP-F-01",
-      "name": "竣工图",
+      "name": "管线竣工图",
       "required": true,
       "stage": "竣工图",
       "category": "as_built_drawing",
-      "aliases": ["管线竣工图", "工程竣工图"]
+      "aliases": ["竣工图", "工程竣工图", "给水竣工图", "排水竣工图", "燃气管线竣工图"]
+    },
+    {
+      "code": "MP-F-02",
+      "name": "竣工测量成果",
+      "required": true,
+      "stage": "竣工图",
+      "category": "as_built_drawing",
+      "aliases": [
+        "地下管线竣工测量成果",
+        "竣工测量报告",
+        "管线测量成果",
+        "竣工测量成果文件"
+      ],
+      "notes": "地下管线工程特有：江门目录第三部分 E、韶关附录 D 及管线资料管理规程均要求归档竣工测量成果。"
+    },
+    {
+      "code": "MP-G-01",
+      "name": "市政基础设施工程竣工验收备案表",
+      "required": false,
+      "stage": "专项验收",
+      "category": "special_acceptance",
+      "aliases": ["竣工验收备案表", "管线工程竣工验收备案"]
+    },
+    {
+      "code": "MP-G-02",
+      "name": "规划验收合格证",
+      "required": false,
+      "stage": "专项验收",
+      "category": "special_acceptance",
+      "aliases": ["规划验收", "规划核实"]
+    }
+  ],
+  "consistency_rules": [
+    {
+      "rule_id": "R-001",
+      "name": "字段适用范围",
+      "type": "field_scope",
+      "scopes": [
+        {
+          "field": "project_name",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "监理合同",
+            "施工单位工程竣工报告",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "project_code",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "owner",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "监理合同",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "contractor",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "施工单位工程竣工报告",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "supervisor",
+          "documents": [
+            "监理合同",
+            "监理规划",
+            "工程质量评估报告",
+            "监理单位质量评估报告"
+          ]
+        },
+        {
+          "field": "designer",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "设计单位质量检查报告",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "address",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "工程竣工验收报告",
+            "竣工测量成果"
+          ]
+        },
+        {
+          "field": "start_date",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "施工单位工程竣工报告"
+          ]
+        },
+        {
+          "field": "finish_date",
+          "documents": [
+            "施工单位工程竣工报告",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "contract_amount",
+          "documents": [
+            "施工合同",
+            "施工单位工程竣工报告",
+            "工程竣工验收报告"
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "R-002",
+      "name": "manifest 字段一致性",
+      "type": "manifest_consistency",
+      "operator": "all_values_equal"
+    },
+    {
+      "rule_id": "R-003",
+      "name": "无 manifest 值时的跨文件一致性",
+      "type": "cross_file_consistency",
+      "operator": "all_values_equal",
+      "min_values": 2,
+      "only_when_manifest_empty": true
     }
   ]
 }

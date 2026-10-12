@@ -1,16 +1,189 @@
 {
   "profile_id": "road-bridge",
   "project_type": "道路/桥梁工程",
-  "version": "0.1.0",
-  "basis_note": "占位清单：结构已预留，条目待按道路/桥梁公开归档目录补全。加载本文件且 required_documents 仍偏少时，Agent 应在报告中声明规则未完备。",
+  "version": "0.3.0",
+  "basis_note": "可配置清单，结构对齐 GB/T 50328 市政工程归档分类（道路 B.0.1 / 桥梁 B.0.2）及地方公开目录（韶关档案编制指南附录 B/C、江门统一目录第二部分市政基础设施、深圳市政归档指南）。非某一地市官方全文照录；公路专项还可对照交通运输部公路建设项目文件材料立卷归档管理办法。参考 PDF 见 reference/road-bridge/ 与 reference/archive-catalogs/。",
+  "manifest_fields": [
+    {
+      "key": "project_name",
+      "name": "项目名称",
+      "type": "text",
+      "required": true,
+      "aliases": ["工程名称", "建设项目名称"]
+    },
+    {
+      "key": "project_code",
+      "name": "项目编号",
+      "type": "identifier",
+      "required": true,
+      "aliases": ["工程编号", "建设项目编号", "编号"]
+    },
+    {
+      "key": "owner",
+      "name": "建设单位",
+      "type": "organization",
+      "required": true
+    },
+    {
+      "key": "contractor",
+      "name": "施工单位",
+      "type": "organization",
+      "required": true
+    },
+    {
+      "key": "supervisor",
+      "name": "监理单位",
+      "type": "organization",
+      "required": true
+    },
+    {
+      "key": "designer",
+      "name": "设计单位",
+      "type": "organization",
+      "required": false
+    },
+    {
+      "key": "address",
+      "name": "工程地址",
+      "type": "text",
+      "required": false,
+      "aliases": ["建设地点", "建设地址", "工程地点", "路线起讫点"]
+    },
+    {
+      "key": "start_date",
+      "name": "开工日期",
+      "type": "date",
+      "required": false
+    },
+    {
+      "key": "finish_date",
+      "name": "竣工日期",
+      "type": "date",
+      "required": false
+    },
+    {
+      "key": "contract_amount",
+      "name": "合同金额",
+      "type": "money",
+      "required": false,
+      "aliases": ["签约合同价", "合同价格", "合同金额（元）"]
+    }
+  ],
+  "primary_reference": {
+    "code": "RB-A-02",
+    "name": "建筑工程施工许可证",
+    "aliases": ["施工许可证", "开工证", "建设工程施工许可证"]
+  },
   "required_documents": [
     {
       "code": "RB-A-01",
+      "name": "建设工程规划许可证",
+      "required": true,
+      "stage": "工程准备",
+      "category": "preparation",
+      "aliases": ["规划许可证", "建设用地规划许可证"]
+    },
+    {
+      "code": "RB-A-02",
+      "name": "建筑工程施工许可证",
+      "required": true,
+      "stage": "工程准备",
+      "category": "preparation",
+      "aliases": ["施工许可证", "开工证", "建设工程施工许可证"]
+    },
+    {
+      "code": "RB-A-03",
       "name": "施工合同",
       "required": true,
       "stage": "工程准备",
       "category": "contract",
-      "aliases": ["建设工程施工合同"]
+      "aliases": ["建设工程施工合同", "承包合同", "施工中标通知书及承包合同"]
+    },
+    {
+      "code": "RB-A-04",
+      "name": "监理合同",
+      "required": true,
+      "stage": "工程准备",
+      "category": "contract",
+      "aliases": ["委托监理合同", "监理中标通知书及委托合同", "建设工程委托监理合同"]
+    },
+    {
+      "code": "RB-B-01",
+      "name": "监理规划",
+      "required": true,
+      "stage": "监理",
+      "category": "supervision",
+      "aliases": ["监理规划书"]
+    },
+    {
+      "code": "RB-B-02",
+      "name": "监理实施细则",
+      "required": false,
+      "stage": "监理",
+      "category": "supervision",
+      "aliases": ["专业监理实施细则"]
+    },
+    {
+      "code": "RB-B-03",
+      "name": "工程质量评估报告",
+      "required": true,
+      "stage": "监理",
+      "category": "supervision",
+      "aliases": ["监理单位质量评估报告", "监理评估报告", "质量评估报告"]
+    },
+    {
+      "code": "RB-C-01",
+      "name": "施工组织设计",
+      "required": true,
+      "stage": "施工",
+      "category": "construction",
+      "aliases": ["施工组织设计方案", "施工方案", "施组"]
+    },
+    {
+      "code": "RB-C-02",
+      "name": "隐蔽工程验收记录",
+      "required": true,
+      "stage": "施工",
+      "category": "construction",
+      "aliases": ["隐蔽工程验收记录表", "隐蔽验收"]
+    },
+    {
+      "code": "RB-C-03",
+      "name": "工程定位测量记录",
+      "required": true,
+      "stage": "施工",
+      "category": "construction",
+      "aliases": ["定位测量", "道路高程测量成果记录", "测量交接桩记录", "控制桩测量"]
+    },
+    {
+      "code": "RB-C-04",
+      "name": "分部工程质量验收记录",
+      "required": true,
+      "stage": "施工",
+      "category": "construction",
+      "aliases": [
+        "路基分部工程质量验收记录",
+        "基层分部工程质量验收记录",
+        "面层分部工程质量验收记录",
+        "桥梁主体分部工程质量验收记录",
+        "分部工程验收记录"
+      ]
+    },
+    {
+      "code": "RB-D-01",
+      "name": "材料进场报审及复试报告",
+      "required": true,
+      "stage": "材料检测",
+      "category": "material_test",
+      "aliases": [
+        "材料复试报告",
+        "进场验收记录",
+        "检测报告",
+        "沥青混合料试验报告",
+        "混凝土抗压强度试验报告",
+        "压实度试验报告",
+        "桩基无损检测试验报告"
+      ]
     },
     {
       "code": "RB-E-01",
@@ -18,7 +191,28 @@
       "required": true,
       "stage": "竣工验收",
       "category": "completion_acceptance",
-      "aliases": ["竣工验收报告"]
+      "aliases": [
+        "建设单位工程竣工验收报告",
+        "竣工验收报告",
+        "工程质量竣工验收报告"
+      ],
+      "notes": "正式竣工验收报告；预验收不能替代本项。"
+    },
+    {
+      "code": "RB-E-02",
+      "name": "施工单位工程竣工报告",
+      "required": true,
+      "stage": "竣工验收",
+      "category": "completion_acceptance",
+      "aliases": ["竣工报告", "施工竣工报告", "工程竣工报告"]
+    },
+    {
+      "code": "RB-E-03",
+      "name": "设计单位质量检查报告",
+      "required": true,
+      "stage": "竣工验收",
+      "category": "completion_acceptance",
+      "aliases": ["设计文件质量检查报告", "设计检查报告"]
     },
     {
       "code": "RB-F-01",
@@ -26,7 +220,137 @@
       "required": true,
       "stage": "竣工图",
       "category": "as_built_drawing",
-      "aliases": ["工程竣工图"]
+      "aliases": ["道路竣工图", "桥梁竣工图", "工程竣工图"]
+    },
+    {
+      "code": "RB-G-01",
+      "name": "市政基础设施工程竣工验收备案表",
+      "required": false,
+      "stage": "专项验收",
+      "category": "special_acceptance",
+      "aliases": ["竣工验收备案表", "市政工程竣工验收备案"]
+    },
+    {
+      "code": "RB-G-02",
+      "name": "规划验收合格证",
+      "required": false,
+      "stage": "专项验收",
+      "category": "special_acceptance",
+      "aliases": ["规划验收", "规划核实"]
+    }
+  ],
+  "consistency_rules": [
+    {
+      "rule_id": "R-001",
+      "name": "字段适用范围",
+      "type": "field_scope",
+      "scopes": [
+        {
+          "field": "project_name",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "监理合同",
+            "施工单位工程竣工报告",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "project_code",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "owner",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "监理合同",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "contractor",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "施工单位工程竣工报告",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "supervisor",
+          "documents": [
+            "监理合同",
+            "监理规划",
+            "工程质量评估报告",
+            "监理单位质量评估报告"
+          ]
+        },
+        {
+          "field": "designer",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "设计单位质量检查报告",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "address",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "start_date",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "施工单位工程竣工报告"
+          ]
+        },
+        {
+          "field": "finish_date",
+          "documents": [
+            "施工单位工程竣工报告",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "contract_amount",
+          "documents": [
+            "施工合同",
+            "施工单位工程竣工报告",
+            "工程竣工验收报告"
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "R-002",
+      "name": "manifest 字段一致性",
+      "type": "manifest_consistency",
+      "operator": "all_values_equal"
+    },
+    {
+      "rule_id": "R-003",
+      "name": "无 manifest 值时的跨文件一致性",
+      "type": "cross_file_consistency",
+      "operator": "all_values_equal",
+      "min_values": 2,
+      "only_when_manifest_empty": true
     }
   ]
 }

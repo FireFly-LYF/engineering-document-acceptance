@@ -193,7 +193,11 @@ export async function getLatestAghSession(): Promise<{ sessionId: string | null;
 }
 
 /** 启动本轮 -p；prompt 走 stdin，避免 Windows 命令行截断/乱码；会话 ID 只来自本进程 stderr */
-export async function startAghAudit(caseId: string, projectName: string): Promise<AuditLaunch> {
+export async function startAghAudit(
+  caseId: string,
+  projectName: string,
+  projectType?: string,
+): Promise<AuditLaunch> {
   if (!(await cliExists())) {
     return {
       caseId,
@@ -226,7 +230,7 @@ export async function startAghAudit(caseId: string, projectName: string): Promis
   }
   cachedAuditSessionId = null
 
-  const prompt = await writeAuditPrompt(caseId, projectName)
+  const prompt = await writeAuditPrompt(caseId, projectName, projectType)
   const origin = getAghWebOrigin()
   console.log(`[agh] start -p case=${caseId} origin=${origin}`)
 

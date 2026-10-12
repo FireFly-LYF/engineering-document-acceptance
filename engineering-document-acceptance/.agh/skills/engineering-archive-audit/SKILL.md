@@ -44,26 +44,45 @@ engineering-document-acceptance/
 ## 规则模板层（可配置，勿写死一地目录）
 
 1. 优先读取用户指定的规则文件路径。
-2. 否则读 `cases/<id>/manifest.json` 的 `project_type` / `rules_profile`。
+2. 否则读 `cases/<id>/manifest.json` 的 `rules_profile`（或 `project_type` slug）。
 3. 再否则按工程类型加载本 Skill 内：
-  - `rules/housing-construction.json` — 房屋建筑工程（默认）
-  - `rules/road-bridge.json` — 道路/桥梁（可后续补全）
-  - `rules/municipal-pipeline.json` — 市政管线（可后续补全）
+  - `rules/housing-construction.json` — 房屋建筑工程（演示完整）
+  - `rules/road-bridge.json` — 道路/桥梁（依据公开归档目录；参考 `reference/road-bridge/`）
+  - `rules/municipal-pipeline.json` — 市政管线（含竣工测量；参考 `reference/municipal-pipeline/`）
 4. 若对应 JSON 不存在或 `required_documents` 为空：在报告首页声明「规则模板未就绪」，仍做接收清单、分类与字段抽取，**完整性缺失判定标为「规则不足，未判定」**，禁止虚构地方标准条文。
 
-规则条目最小字段：
+### 规则文件四段结构（V2.0）
 
+每个 `rules/*.json` **必须**包含下列顶层键（`audit_prepare.load_rules` 会校验）：
 
-| 字段         | 含义                                      |
-| ---------- | --------------------------------------- |
-| `code`     | 清单编号（如 E-01）                            |
-| `name`     | 标准名称                                    |
-| `required` | 是否必需                                    |
-| `stage`    | 阶段：工程准备 / 监理 / 施工 / 竣工图 / 竣工验收 / 专项验收 等 |
-| `category` | 分类标签（与下文分类层对齐）                          |
-| `aliases`  | 别名，用于匹配文件名与文内标题                         |
-| `notes`    | 可选：不能被何种类文件替代等说明                        |
+| 键 | 含义 |
+| --- | --- |
+| `manifest_fields` | 要从主参考提取、并参与一致性比较的结构化字段（`key` / `name` / `type` / `required` / `aliases`） |
+| `primary_reference` | 主参考文件定义（`code` / `name` / `aliases`）；房屋建筑默认为 `A-02` 建筑工程施工许可证 |
+| `required_documents` | 必需资料清单（完整性匹配） |
+| `consistency_rules` | 字段核查规则；至少含 R-001 / R-002 / R-003 |
 
+`required_documents[]` 条目最小字段：
+
+| 字段 | 含义 |
+| --- | --- |
+| `code` | 清单编号（如 E-01） |
+| `name` | 标准名称 |
+| `required` | 是否必需 |
+| `stage` | 阶段：工程准备 / 监理 / 施工 / 竣工图 / 竣工验收 / 专项验收 等 |
+| `category` | 分类标签（与下文分类层对齐） |
+| `aliases` | 别名，用于匹配文件名与文内标题 |
+| `notes` | 可选：不能被何种类文件替代等说明 |
+
+`consistency_rules` 核心三条：
+
+| rule_id | type | 作用 |
+| --- | --- | --- |
+| R-001 | `field_scope` | 字段只在 `scopes[].documents` 指定的文档类中查找；不适用 → `applicable=false` |
+| R-002 | `manifest_consistency` | manifest 有值时，适用且有值的文件须与 manifest 一致 |
+| R-003 | `cross_file_consistency` | manifest 空时，≥`min_values` 个适用文件有值则互比 |
+
+字段与规则以 JSON 为唯一来源；确定性脚本做提取/校验/归一化/规则计算，Agent 不改写机器结论状态。
 
 **上位依据（表述用，勿假装已加载全文）**：住房城乡建设部《建设工程文件归档规范》及相关地方「归档目录 / 办事指南 / 空白样表」仅作规则模板来源说明；具体项目以当前加载的 JSON 清单为准。
 

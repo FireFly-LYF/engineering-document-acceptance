@@ -7,7 +7,7 @@
  * 用法（在 engineering-doc-generator 目录）:
  *   node scripts/generate.js prepare --case ../../../cases/demo-housing-mixed
  *   node scripts/generate.js build   --case ../../../cases/demo-housing-mixed
- *   # 默认输出到 cases/<id>/doc/；勿写到仓库根
+ *   # docx 固定输出到 cases/<id>/doc/（不接受 --out）
  *
  * 正文由 Agent 按 SKILL.md 撰写；脚本不写正文内容，只 prepare 结构化材料与 build 版式。
  */
@@ -271,7 +271,7 @@ function writeAgentBrief(bundle, facts, evidence, outline) {
   lines.push('- 有缺失不得写「全部材料齐全合格」');
   lines.push('- 预验收默认不能替代正式《工程竣工验收报告》');
   lines.push('- 错传单独成段；本工程真冲突写清取值与短文件名');
-  lines.push('- 写完后执行: node scripts/generate.js build --case <caseDir>');
+  lines.push('- 写完后执行: node scripts/generate.js build --case <caseDir>（docx 固定写入 cases/<id>/doc/）');
   lines.push('');
   return lines.join('\n');
 }
@@ -558,7 +558,7 @@ async function buildDocxFromMarkdown(md, outputPath) {
   fs.writeFileSync(outputPath, buf);
 }
 
-async function buildCase(caseDir, outRoot) {
+async function buildCase(caseDir) {
   const abs = path.resolve(caseDir);
   const wd = workDir(abs);
   const bodyPath = path.join(wd, '正文.md');
@@ -569,12 +569,8 @@ async function buildCase(caseDir, outRoot) {
   }
   const meta = readJson(path.join(wd, 'statement-meta.json'), {}) || {};
   const title = meta.title || `${statementTitle('本工程')}.docx`;
-  // 默认 cases/<id>/doc/；显式 --out 也必须落在本 case 目录内
-  const outDir = outRoot ? path.resolve(outRoot) : path.join(abs, 'doc');
-  const relOut = path.relative(abs, outDir);
-  if (!relOut || relOut.startsWith('..') || path.isAbsolute(relOut)) {
-    throw new Error('docx 输出目录必须在本 case 内（默认 cases/<id>/doc）: ' + outDir);
-  }
+  // 固定输出到 cases/<id>/doc/，不接受外部改写路径
+  const outDir = path.join(abs, 'doc');
   ensureDir(outDir);
   const docxPath = path.join(outDir, title.replace(/[\\/:*?"<>|]/g, '_'));
   await buildDocxFromMarkdown(md, docxPath);
@@ -584,13 +580,14 @@ async function buildCase(caseDir, outRoot) {
 
 function parseArgs(argv) {
   const args = argv.slice(2);
-  const opts = { cmd: null, caseDir: null, out: null };
+  const opts = { cmd: null, caseDir: null };
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === 'prepare' || a === 'build') opts.cmd = a;
     else if (a === '--case') opts.caseDir = args[++i];
-    else if (a === '--out') opts.out = args[++i];
-    else if (a.startsWith('-')) throw new Error('未知参数: ' + a);
+    else if (a === '--out') {
+      throw new Error('不支持 --out：docx 固定输出到 cases/<id>/doc/');
+    } else if (a.startsWith('-')) throw new Error('未知参数: ' + a);
   }
   return opts;
 }
@@ -600,11 +597,12 @@ async function main() {
   if (!opts.cmd || !opts.caseDir) {
     console.log(`用法:
   node scripts/generate.js prepare --case <cases/项目目录>
-  node scripts/generate.js build   --case <cases/项目目录> [--out <本case内目录，默认doc>]`);
+  node scripts/generate.js build   --case <cases/项目目录>
+  （docx 固定写入该 case 下 doc/ 目录）`);
     process.exit(1);
   }
   if (opts.cmd === 'prepare') prepareCase(opts.caseDir);
-  else await buildCase(opts.caseDir, opts.out);
+  else await buildCase(opts.caseDir);
 }
 
 if (require.main === module) {

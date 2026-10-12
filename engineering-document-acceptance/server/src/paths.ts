@@ -40,7 +40,7 @@ export const AGNES_PROFILE = process.env.AGNES_PROFILE || 'local-dev'
 
 export const PORT = Number(process.env.PORT || 8787)
 
-/** 允许「用户-时间」中文目录名；禁止路径穿越与 Windows 非法字符 */
+/** 允许日期型目录名（如 2026_10_12_121230）及既有 demo id；禁止路径穿越与非法字符 */
 export function assertCaseId(id: string): string {
   const s = String(id || '').trim()
   if (!s || s.length > 96) {

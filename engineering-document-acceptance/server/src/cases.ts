@@ -10,9 +10,41 @@ import {
 
 const KEEP = '.keep'
 
+/** 工程类型 slug；与 rules_profile / 规则文件名一致（V2.0 任务身份） */
+export const PROJECT_TYPES = [
+  'housing-construction',
+  'road-bridge',
+  'municipal-pipeline',
+] as const
+
+export type ProjectTypeId = (typeof PROJECT_TYPES)[number]
+
+const PROJECT_TYPE_SET = new Set<string>(PROJECT_TYPES)
+
+export function isProjectTypeId(value: unknown): value is ProjectTypeId {
+  return typeof value === 'string' && PROJECT_TYPE_SET.has(value)
+}
+
+export const PROJECT_TYPE_LABELS: Record<ProjectTypeId, string> = {
+  'housing-construction': '房屋建筑工程',
+  'road-bridge': '道路/桥梁工程',
+  'municipal-pipeline': '市政管线工程',
+}
+
+/** 规范化前端传入或 manifest 中的工程类型 slug */
+export function resolveRulesProfile(raw?: string | null): ProjectTypeId {
+  const s = String(raw || '').trim()
+  if (isProjectTypeId(s)) return s
+  const byLabel = (Object.entries(PROJECT_TYPE_LABELS) as Array<[ProjectTypeId, string]>).find(
+    ([, label]) => label === s,
+  )
+  if (byLabel) return byLabel[0]
+  return 'housing-construction'
+}
+
 export type CaseManifest = {
   project_id: string
-  project_type: string
+  project_type: ProjectTypeId | string
   rules_profile: string
   project_name: string
   batch_label?: string
@@ -32,48 +64,105 @@ async function ensureDir(dir: string) {
   await fs.mkdir(dir, { recursive: true })
 }
 
-export async function ensureCase(
-  id: string,
-  opts: { name?: string; batchLabel?: string } = {},
-): Promise<CaseManifest> {
+export type EnsureCaseOpts = {
+  name?: string
+  batchLabel?: string
+  projectType?: string
+  /** 为 true 时要求名称与类型齐全（新建正式任务） */
+  requireIdentity?: boolean
+}
+
+export async function ensureCase(id: string, opts: EnsureCaseOpts = {}): Promise<CaseManifest> {
   const root = caseDir(id)
   await ensureDir(filesDir(id))
   await ensureDir(workDir(id))
 
   const manifestPath = path.join(root, 'manifest.json')
   let manifest: CaseManifest
+  let created = false
   try {
     const raw = await fs.readFile(manifestPath, 'utf8')
     manifest = JSON.parse(raw) as CaseManifest
   } catch {
+    created = true
+    const projectType = opts.projectType
+    const projectName = auditProjectName(opts.name)
+    if (opts.requireIdentity) {
+      if (!isProjectTypeId(projectType)) {
+        const err = new Error('请选择有效的工程类型') as Error & { status?: number }
+        err.status = 400
+        throw err
+      }
+      if (!projectName) {
+        const err = new Error('请填写项目名称') as Error & { status?: number }
+        err.status = 400
+        throw err
+      }
+    }
+    const typeId: ProjectTypeId = isProjectTypeId(projectType)
+      ? projectType
+      : 'housing-construction'
+    // 任务身份最小结构：不预填施工单位/合同金额等核查字段
     manifest = {
       project_id: id,
-      project_type: '房屋建筑工程',
-      rules_profile: 'housing-construction',
-      // 未命名时不要写占位工程名，否则 audit_prepare 会把全文判成错传
-      project_name: auditProjectName(opts.name),
-      batch_label: opts.batchLabel,
+      project_type: typeId,
+      rules_profile: typeId,
+      project_name: projectName,
       created_at: new Date().toISOString(),
       source: 'archive-check-web',
     }
+    if (opts.batchLabel !== undefined) manifest.batch_label = opts.batchLabel
   }
 
-  if (opts.name !== undefined) manifest.project_name = auditProjectName(opts.name)
-  if (opts.batchLabel !== undefined) manifest.batch_label = opts.batchLabel
+  if (!created) {
+    if (opts.name !== undefined) manifest.project_name = auditProjectName(opts.name)
+    if (opts.batchLabel !== undefined) manifest.batch_label = opts.batchLabel
+    if (opts.projectType !== undefined) {
+      if (!isProjectTypeId(opts.projectType)) {
+        const err = new Error('请选择有效的工程类型') as Error & { status?: number }
+        err.status = 400
+        throw err
+      }
+      manifest.project_type = opts.projectType
+      manifest.rules_profile = opts.projectType
+    }
+  }
+
   manifest.updated_at = new Date().toISOString()
   await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8')
   return manifest
 }
 
-/** UI 可显示「未命名工程」；写入 manifest 时留空，交给脚本用文载共识推断 */
+/** 未命名 / 空名写入空串，禁止作为正式核查的项目名称 */
 function auditProjectName(name?: string) {
   const n = (name || '').trim()
   if (!n || n === '未命名工程') return ''
   return n
 }
 
+export function assertFormalAuditIdentity(manifest: CaseManifest) {
+  if (!auditProjectName(manifest.project_name)) {
+    const err = new Error('请先填写项目名称后再开始核查') as Error & { status?: number }
+    err.status = 400
+    throw err
+  }
+  const typeOk =
+    isProjectTypeId(manifest.project_type) || isProjectTypeId(manifest.rules_profile)
+  if (!typeOk) {
+    const err = new Error('请先选择工程类型后再开始核查') as Error & { status?: number }
+    err.status = 400
+    throw err
+  }
+}
+
 export async function updateCaseName(id: string, name: string) {
-  return ensureCase(id, { name })
+  const n = auditProjectName(name)
+  if (!n) {
+    const err = new Error('项目名称不能为空') as Error & { status?: number }
+    err.status = 400
+    throw err
+  }
+  return ensureCase(id, { name: n })
 }
 
 async function walkFiles(dir: string, prefix = ''): Promise<ListedFile[]> {
@@ -216,17 +305,26 @@ export async function readFindings(id: string) {
   }
 }
 
-export async function writeAuditPrompt(id: string, projectName: string) {
-  await ensureCase(id, { name: projectName })
+export async function writeAuditPrompt(
+  id: string,
+  projectName: string,
+  projectType?: string,
+) {
+  const manifest = await ensureCase(id, {
+    name: projectName,
+    projectType: projectType ? resolveRulesProfile(projectType) : undefined,
+    requireIdentity: false,
+  })
+  const profile = resolveRulesProfile(manifest.rules_profile || manifest.project_type)
+  const typeLabel = PROJECT_TYPE_LABELS[profile]
   const text = [
+    `工程名称：${manifest.project_name || projectName || id}`,
+    `工程类型：${typeLabel}`,
+    `rules_profile：${profile}`,
+    '',
     `请使用 engineering-archive-audit 对 cases/${id} 做工程验收资料材料齐全与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。`,
     '',
-    '核查完成后，必须使用 engineering-doc-generator：prepare → 撰写 `_work/正文.md` → build 导出 Word。',
-    `build 时不要加 --out，使 docx 输出到 cases/${id}/doc/ `,
-    '',
-    '结论需覆盖：缺失文件、错传文件、文件中冲突字段、重复文件。',
-    '',
-    `工程名称：${projectName || id}`,
+    '核查完成后，请使用 engineering-doc-generator 生成情况说明word文件。',
   ].join('\n')
   const promptPath = path.join(caseDir(id), 'TEST_PROMPT.txt')
   await fs.writeFile(promptPath, `${text}\n`, 'utf8')

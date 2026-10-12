@@ -1,0 +1,20 @@
+道路 / 桥梁工程归档参考
+
+本目录 PDF 不纳入 Git。执行：python tools/fetch_archive_catalogs.py
+
+1. highway-project-data-management.pdf
+   名称：公路工程资料管理技术规程（公开转载/标准镜像）
+   URL：https://qxb-img-osscache.qixin.com/standards/300fbe9b3a94f899fa56a4e520456c2a.pdf
+   用途：公路竣工资料归档内容与排序（立项、许可、勘察设计、施工监理、竣交工等）
+   注意：非交通运输部官网原文；公路专项还可对照交办发〔2010〕382号
+   （交通运输部《公路建设项目文件材料立卷归档管理办法》，官网附件多为 DOC）
+
+交叉引用（见 ../archive-catalogs/）
+--------------------------------
+- sg-archive-guide-2025.pdf 附录 B 道路工程、附录 C 桥梁工程文件归档范围
+- jm-archive-unified-catalog.pdf 第二部分：市政基础设施（C2 道路、C3 桥涵）
+- gbt-50328-2014-archive-code.pdf 附录 B.0.1 道路、B.0.2 桥梁
+- sz-archive-guide-2025.pdf 附件 2 市政工程文件归档范围
+
+规则文件 rules/road-bridge.json 依据上述公开目录提炼演示级必需项，
+非某一地市全文照录。

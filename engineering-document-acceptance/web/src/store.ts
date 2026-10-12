@@ -1,11 +1,32 @@
-import type { AppState, Project, UserProfile } from './types'
+import type { AppState, Project, ProjectType, UserProfile } from './types'
 
 const KEY = 'eda-archive-check-v1'
 
 export const UNNAMED_PROJECT = '未命名工程'
 
+export const PROJECT_TYPE_OPTIONS: Array<{ value: ProjectType; label: string }> = [
+  { value: 'housing-construction', label: '房屋建筑工程' },
+  { value: 'road-bridge', label: '道路/桥梁工程' },
+  { value: 'municipal-pipeline', label: '市政管线工程' },
+]
+
+const PROJECT_TYPE_SET = new Set<string>(PROJECT_TYPE_OPTIONS.map((o) => o.value))
+
+export function isProjectType(value: unknown): value is ProjectType {
+  return typeof value === 'string' && PROJECT_TYPE_SET.has(value)
+}
+
+export function projectTypeLabel(type: ProjectType): string {
+  return PROJECT_TYPE_OPTIONS.find((o) => o.value === type)?.label ?? type
+}
+
 export function isUnnamedProject(name: string) {
   return !name.trim() || name.trim() === UNNAMED_PROJECT
+}
+
+/** 正式核查要求：已选工程类型 + 已填项目名称 */
+export function canStartFormalAudit(p: Pick<Project, 'name' | 'projectType' | 'files'>) {
+  return Boolean(p.files.length) && isProjectType(p.projectType) && !isUnnamedProject(p.name)
 }
 
 function empty(): AppState {
@@ -14,10 +35,14 @@ function empty(): AppState {
 
 /** 刷新/重启后 in-flight 核查已中断，不能继续显示「核查中」 */
 function reviveProject(p: Project): Project {
-  if (p.auditStatus !== 'auditing') return p
+  const projectType: ProjectType = isProjectType(p.projectType)
+    ? p.projectType
+    : 'housing-construction'
+  const base: Project = { ...p, projectType }
+  if (base.auditStatus !== 'auditing') return base
   return {
-    ...p,
-    auditStatus: p.files?.length ? 'ready' : 'draft',
+    ...base,
+    auditStatus: base.files?.length ? 'ready' : 'draft',
     aghMessage: undefined,
   }
 }
@@ -63,54 +88,67 @@ export function saveState(state: AppState) {
   }
 }
 
+function pad2(n: number) {
+  return String(n).padStart(2, '0')
+}
+
+/** 用户未填名称时的 ID：精确到分钟，如 2026_10_12_1212 */
+export function formatUserIdTime(d = new Date()): string {
+  return `${d.getFullYear()}_${pad2(d.getMonth() + 1)}_${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}`
+}
+
+/** case 目录名：仅日期时间，精确到秒，如 2026_10_12_121230 */
+export function formatCaseIdTime(d = new Date()): string {
+  return `${d.getFullYear()}_${pad2(d.getMonth() + 1)}_${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`
+}
+
 export function createUser(displayName: string): UserProfile {
-  const name = displayName.trim() || '核查员'
+  const name = displayName.trim()
+  const minuteId = formatUserIdTime()
   return {
-    id: `u_${crypto.randomUUID().slice(0, 8)}`,
-    displayName: name,
+    id: name ? `u_${crypto.randomUUID().slice(0, 8)}` : minuteId,
+    displayName: name || minuteId,
     createdAt: new Date().toISOString(),
   }
 }
 
-/** 目录名安全片段：去掉路径非法字符，保留中文 */
-function sanitizeUserForCaseId(displayName: string): string {
-  const s = displayName
-    .trim()
-    .replace(/[\\/:*?"<>|\s]+/g, '_')
-    .replace(/_+/g, '_')
-    .replace(/^_|_$/g, '')
-    .slice(0, 32)
-  return s || '未命名'
-}
-
-function formatCaseTime(d = new Date()): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`
-}
-
-/** 工程目录 ID：用户名-YYYYMMDD-HHmmss */
-export function makeCaseId(displayName: string, at = new Date()): string {
-  return `${sanitizeUserForCaseId(displayName)}-${formatCaseTime(at)}`
+/** 工程目录 ID：仅 YYYY_MM_DD_HHMMSS（不含用户名） */
+export function makeCaseId(at = new Date()): string {
+  return formatCaseIdTime(at)
 }
 
 export function createProject(
   userId: string,
-  displayName: string,
   name: string,
+  projectType: ProjectType,
   batchLabel?: string,
   takenIds?: Iterable<string>,
 ): Project {
+  const trimmed = name.trim()
+  if (!trimmed || trimmed === UNNAMED_PROJECT) {
+    throw new Error('请填写项目名称')
+  }
+  if (!isProjectType(projectType)) {
+    throw new Error('请选择工程类型')
+  }
   const now = new Date().toISOString()
   const batch =
     batchLabel?.trim() ||
     `批次 ${new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })}`
   const taken = new Set(takenIds)
-  let id = makeCaseId(displayName)
-  if (taken.has(id)) id = `${id}-${crypto.randomUUID().slice(0, 4)}`
+  let id = makeCaseId()
+  // 同一秒内冲突时顺延一秒，尽量保持「纯日期时间」目录名
+  let guard = 0
+  while (taken.has(id) && guard < 60) {
+    guard += 1
+    id = formatCaseIdTime(new Date(Date.now() + guard * 1000))
+  }
+  if (taken.has(id)) id = `${makeCaseId()}_${crypto.randomUUID().slice(0, 4)}`
   return {
     id,
     userId,
-    name: name.trim() || UNNAMED_PROJECT,
+    name: trimmed,
+    projectType,
     batchLabel: batch,
     createdAt: now,
     updatedAt: now,

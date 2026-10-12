@@ -23,9 +23,16 @@ except ImportError as exc:  # pragma: no cover
     raise SystemExit("需要 PyMuPDF：pip install pymupdf") from exc
 
 ROOT = Path(__file__).resolve().parents[3]  # engineering-document-acceptance
-DEFAULT_RULES = (
-    Path(__file__).resolve().parents[1] / "rules" / "housing-construction.json"
-)
+RULES_DIR = Path(__file__).resolve().parents[1] / "rules"
+DEFAULT_RULES = RULES_DIR / "housing-construction.json"
+
+# 前端选择的 rules_profile / project_type → 规则文件
+PROFILE_SLUGS = ("housing-construction", "road-bridge", "municipal-pipeline")
+PROFILE_ALIASES = {
+    "房屋建筑工程": "housing-construction",
+    "道路/桥梁工程": "road-bridge",
+    "市政管线工程": "municipal-pipeline",
+}
 
 FIELD_PATTERNS = [
     # 真实样表常用「工程名称」；合成 PDF 同时保留「项目名称」
@@ -120,8 +127,46 @@ def classify(name: str, text: str) -> tuple[str, str, list[str]]:
     return "unknown", "low", hits
 
 
+# V2.0 规则文件四段结构（另含 profile 元数据）
+REQUIRED_RULE_KEYS = (
+    "profile_id",
+    "project_type",
+    "manifest_fields",
+    "primary_reference",
+    "required_documents",
+    "consistency_rules",
+)
+
+CORE_CONSISTENCY_TYPES = {
+    "R-001": "field_scope",
+    "R-002": "manifest_consistency",
+    "R-003": "cross_file_consistency",
+}
+
+
 def load_rules(path: Path) -> dict:
-    return json.loads(path.read_text(encoding="utf-8"))
+    data = json.loads(path.read_text(encoding="utf-8"))
+    missing = [k for k in REQUIRED_RULE_KEYS if k not in data]
+    if missing:
+        raise ValueError(f"规则文件缺少键 {missing}: {path}")
+    if not isinstance(data.get("manifest_fields"), list) or not data["manifest_fields"]:
+        raise ValueError(f"规则文件 manifest_fields 须为非空数组: {path}")
+    pref = data.get("primary_reference")
+    if not isinstance(pref, dict) or not pref.get("code") or not pref.get("name"):
+        raise ValueError(f"规则文件 primary_reference 须含 code/name: {path}")
+    if not isinstance(data.get("required_documents"), list):
+        raise ValueError(f"规则文件 required_documents 须为数组: {path}")
+    rules = data.get("consistency_rules")
+    if not isinstance(rules, list):
+        raise ValueError(f"规则文件 consistency_rules 须为数组: {path}")
+    by_id = {r.get("rule_id"): r for r in rules if isinstance(r, dict)}
+    for rid, rtype in CORE_CONSISTENCY_TYPES.items():
+        row = by_id.get(rid)
+        if not row or row.get("type") != rtype:
+            raise ValueError(
+                f"规则文件须含 {rid} type={rtype}: {path}"
+            )
+    return data
 
 
 def iter_files(files_dir: Path) -> list[Path]:
@@ -693,21 +738,56 @@ def run(case_dir: Path, rules_path: Path) -> Path:
     return work
 
 
+def resolve_rules_path(case: Path, rules_arg: str | None) -> Path:
+    """优先 --rules；否则用 manifest.rules_profile / project_type（前端创建任务时写入）。"""
+    if rules_arg:
+        rules = Path(rules_arg)
+        if not rules.is_absolute():
+            rules = (Path.cwd() / rules).resolve()
+        return rules
+
+    profile = None
+    manifest_path = case / "manifest.json"
+    if manifest_path.is_file():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            manifest = {}
+        raw = manifest.get("rules_profile") or manifest.get("project_type") or ""
+        raw = str(raw).strip()
+        if raw in PROFILE_SLUGS:
+            profile = raw
+        elif raw in PROFILE_ALIASES:
+            profile = PROFILE_ALIASES[raw]
+
+    if profile:
+        path = RULES_DIR / f"{profile}.json"
+        if path.is_file():
+            print(f"[audit_prepare] rules from manifest: {profile} -> {path}")
+            return path
+        raise SystemExit(f"manifest 指定规则不存在: {path}")
+
+    print(f"[audit_prepare] rules fallback: {DEFAULT_RULES.name}")
+    return DEFAULT_RULES
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--case", required=True, help="cases/<project-id> directory")
-    ap.add_argument("--rules", default=str(DEFAULT_RULES), help="rules json path")
+    ap.add_argument(
+        "--rules",
+        default=None,
+        help="rules json path；省略时读 cases/<id>/manifest.json 的 rules_profile",
+    )
     args = ap.parse_args()
     case = Path(args.case)
     if not case.is_absolute():
         # resolve relative to CWD first, then workspace root
         cand = Path.cwd() / case
         case = cand if cand.exists() else (ROOT / case)
-    rules = Path(args.rules)
-    if not rules.is_absolute():
-        rules = (Path.cwd() / rules).resolve()
     if not case.exists():
         raise SystemExit(f"case 不存在: {case}")
+    rules = resolve_rules_path(case, args.rules)
     if not rules.exists():
         raise SystemExit(f"rules 不存在: {rules}")
     run(case, rules)

@@ -8,6 +8,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { statementDownloadUrl } from '../lib/api'
+import { canStartFormalAudit, isUnnamedProject } from '../store'
 import type { Project } from '../types'
 import { auditStatusLabel } from './StatusBadge'
 
@@ -80,7 +81,11 @@ export function AuditPanel({
         <p style={{ margin: '0 0 14px', color: 'var(--muted)', fontSize: '0.86rem', lineHeight: 1.55 }}>
           {project.auditStatus === 'done' && s?.note
             ? s.note
-            : '点击开始核查后，将整段交给本机 AGH Agent。可随时打开 AGH 网页查看运行过程。'}
+            : isUnnamedProject(project.name)
+              ? '未命名任务不能进入正式核查，请先填写项目名称。'
+              : !project.files.length
+                ? '请先上传工程资料后再开始核查。'
+                : '点击开始核查后，将整段交给本机 AGH Agent。可随时打开 AGH 网页查看运行过程。'}
         </p>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -94,7 +99,7 @@ export function AuditPanel({
               type="button"
               className="btn btn-primary"
               style={{ width: '100%' }}
-              disabled={!project.files.length}
+              disabled={!canStartFormalAudit(project)}
               onClick={onRun}
             >
               {project.auditStatus === 'done' ? <Sparkles size={18} /> : <Play size={18} />}

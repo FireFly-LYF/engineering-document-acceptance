@@ -114,7 +114,7 @@ cd .agh/skills/engineering-doc-generator
 node scripts/generate.js prepare --case ../../../cases/demo-housing-mixed
 # Agent 撰写 cases/.../_work/正文.md 后：
 node scripts/generate.js build --case ../../../cases/demo-housing-mixed
-# docx → cases/demo-housing-mixed/doc/
+# docx 由脚本固定写入 cases/<id>/doc/
 ```
 
 ## 演示包考点（`demo-housing-mixed`）
@@ -152,9 +152,22 @@ node scripts/generate.js build --case ../../../cases/demo-housing-mixed
 
 ## 规则模板
 
-`engineering-archive-audit/rules/` 下 JSON 可配置，默认 `housing-construction.json`（房屋建筑）。道路/桥梁、市政管线为占位清单，可按公开目录替换，避免写死单一地市全文。
+`engineering-archive-audit/rules/` 下 JSON 可配置：
 
-公开参考 PDF 索引：`reference/public-pdfs/SOURCES.txt`。
+- `housing-construction.json` — 房屋建筑（演示完整）
+- `road-bridge.json` — 道路/桥梁（依据 GB/T 50328 与韶关/江门/深圳公开目录提炼）
+- `municipal-pipeline.json` — 市政管线（含竣工测量等管线特有项）
+
+避免写死单一地市全文；实际项目可替换为本单位/当地目录。
+
+公开参考 PDF（分类）：
+
+- `reference/README.txt` — 总索引
+- `reference/archive-catalogs/` — 国标与跨类型归档目录
+- `reference/road-bridge/`、`reference/municipal-pipeline/` — 类型侧重
+- `reference/public-pdfs/` — 空白样表与既有参考
+
+拉取：`python tools/fetch_public_pdfs.py` 与 `python tools/fetch_archive_catalogs.py`。
 
 ## 开发辅助脚本（`tools/`）
 
@@ -165,7 +178,8 @@ node scripts/generate.js build --case ../../../cases/demo-housing-mixed
 | `generate_demo_case.py` | 重新生成 `demo-housing-mixed` |
 | `generate_near_miss_case.py` | 重新生成 `demo-housing-near-miss` |
 | `generate_complete_case.py` | 重新生成 `demo-housing-complete`（正确对照包） |
-| `fetch_public_pdfs.py` | 拉取公开归档指南/目录类 PDF 到 `reference/` |
+| `fetch_public_pdfs.py` | 拉取公开样表与江门/深圳目录到 `reference/public-pdfs/` |
+| `fetch_archive_catalogs.py` | 拉取并分类归档目录到 `reference/archive-catalogs/` 等 |
 
 
 ## 说明与边界

@@ -3,6 +3,7 @@ import express from 'express'
 import JSZip from 'jszip'
 import multer from 'multer'
 import {
+  assertFormalAuditIdentity,
   createFolder,
   deleteFolder,
   deletePath,
@@ -55,9 +56,13 @@ app.get('/api/config', (_req, res) => {
 app.post('/api/cases', async (req, res) => {
   try {
     const id = assertCaseId(String(req.body?.id || ''))
+    const name = req.body?.name ?? req.body?.project_name
+    const projectType = req.body?.projectType ?? req.body?.project_type
     const manifest = await ensureCase(id, {
-      name: req.body?.name,
-      batchLabel: req.body?.batchLabel,
+      name: name != null ? String(name) : undefined,
+      projectType: projectType != null ? String(projectType) : undefined,
+      batchLabel: req.body?.batchLabel != null ? String(req.body.batchLabel) : undefined,
+      requireIdentity: true,
     })
     res.json({ ok: true, manifest })
   } catch (e) {
@@ -210,14 +215,24 @@ app.delete('/api/cases/:id/folders', async (req, res) => {
 app.post('/api/cases/:id/audit', async (req, res) => {
   try {
     const id = assertCaseId(req.params.id)
-    const name = String(req.body?.name || id)
+    const name = String(req.body?.name || '')
+    const projectTypeRaw = req.body?.projectType ?? req.body?.project_type
     const files = await listCaseFiles(id)
     if (!files.length) {
       res.status(400).json({ error: '请先上传文件到本工程' })
       return
     }
-    await ensureCase(id, { name })
-    const launch = await startAghAudit(id, name)
+    const manifest = await ensureCase(id, {
+      name: name || undefined,
+      projectType: projectTypeRaw != null ? String(projectTypeRaw) : undefined,
+      requireIdentity: false,
+    })
+    assertFormalAuditIdentity(manifest)
+    const launch = await startAghAudit(
+      id,
+      manifest.project_name || name || id,
+      String(manifest.rules_profile || manifest.project_type || ''),
+    )
     res.json(launch)
   } catch (e) {
     sendError(res, e)

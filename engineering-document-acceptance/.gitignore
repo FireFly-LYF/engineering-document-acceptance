@@ -39,3 +39,6 @@ Thumbs.db
 .dev-logs/
 _verify_utf8.txt
 FILE_LIST.txt
+
+# public reference PDFs（用 tools/fetch_*.py 拉取；SOURCES/README 入库）
+reference/**/*.pdf

@@ -30,7 +30,7 @@ engineering-doc-generator/
 |------|------|
 | **scripts/generate.js prepare** | 从 `_work/findings.json` 等生成 facts / evidence / outline / agent-brief（确定性，省 token） |
 | **本 Skill（你）** | 只读 brief + facts + outline，撰写 `_work/正文.md` |
-| **scripts/generate.js build** | `正文.md` → `.docx`（不写正文） |
+| **scripts/generate.js build** | `正文.md` → `.docx`（不写正文；输出固定为 `cases/<id>/doc/`） |
 
 ## 前置条件
 
@@ -49,7 +49,7 @@ npm install   # 首次（勿把 npm script 命名为 prepare，会与 npm 生命
 node scripts/generate.js prepare --case ../../../cases/demo-housing-mixed
 # 然后撰写 ../../../cases/demo-housing-mixed/_work/正文.md
 node scripts/generate.js build   --case ../../../cases/demo-housing-mixed
-# docx 默认写到 cases/demo-housing-mixed/doc/（不要 --out 到仓库根）
+# docx 由脚本固定写入 cases/<id>/doc/（不接受 --out）
 ```
 
 ## 执行进度

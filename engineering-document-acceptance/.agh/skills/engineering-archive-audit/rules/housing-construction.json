@@ -1,8 +1,79 @@
 {
   "profile_id": "housing-construction",
   "project_type": "房屋建筑工程",
-  "version": "0.1.0",
-  "basis_note": "示例可配置清单，结构对齐常见地方「竣工验收技术资料/工程档案归档目录」与办事指南分类；非某一地市官方全文照录。实际项目请替换为本单位/当地约定目录。上位参考：住房城乡建设部《建设工程文件归档规范》及各地公开归档目录、空白样表。",
+  "version": "0.2.0",
+  "basis_note": "示例可配置清单，结构对齐常见地方「竣工验收技术资料/工程档案归档目录」与办事指南分类；非某一地市官方全文照录。实际项目请替换为本单位/当地约定目录。上位参考：住房城乡建设部《建设工程文件归档规范》及各地公开归档目录、空白样表。V2.0：含 manifest_fields / primary_reference / required_documents / consistency_rules 四段。",
+  "manifest_fields": [
+    {
+      "key": "project_name",
+      "name": "项目名称",
+      "type": "text",
+      "required": true,
+      "aliases": ["工程名称", "建设项目名称"]
+    },
+    {
+      "key": "project_code",
+      "name": "项目编号",
+      "type": "identifier",
+      "required": true,
+      "aliases": ["工程编号", "建设项目编号", "编号"]
+    },
+    {
+      "key": "owner",
+      "name": "建设单位",
+      "type": "organization",
+      "required": true
+    },
+    {
+      "key": "contractor",
+      "name": "施工单位",
+      "type": "organization",
+      "required": true
+    },
+    {
+      "key": "supervisor",
+      "name": "监理单位",
+      "type": "organization",
+      "required": true
+    },
+    {
+      "key": "designer",
+      "name": "设计单位",
+      "type": "organization",
+      "required": false
+    },
+    {
+      "key": "address",
+      "name": "工程地址",
+      "type": "text",
+      "required": false,
+      "aliases": ["建设地点", "建设地址", "工程地点", "建设位置"]
+    },
+    {
+      "key": "start_date",
+      "name": "开工日期",
+      "type": "date",
+      "required": false
+    },
+    {
+      "key": "finish_date",
+      "name": "竣工日期",
+      "type": "date",
+      "required": false
+    },
+    {
+      "key": "contract_amount",
+      "name": "合同金额",
+      "type": "money",
+      "required": false,
+      "aliases": ["签约合同价", "合同价格", "合同金额（元）"]
+    }
+  ],
+  "primary_reference": {
+    "code": "A-02",
+    "name": "建筑工程施工许可证",
+    "aliases": ["施工许可证", "开工证", "建设工程施工许可证"]
+  },
   "required_documents": [
     {
       "code": "A-01",
@@ -14,11 +85,11 @@
     },
     {
       "code": "A-02",
-      "name": "施工许可证",
+      "name": "建筑工程施工许可证",
       "required": true,
       "stage": "工程准备",
       "category": "preparation",
-      "aliases": ["建筑工程施工许可证", "开工证"]
+      "aliases": ["施工许可证", "开工证", "建设工程施工许可证"]
     },
     {
       "code": "A-03",
@@ -148,6 +219,120 @@
       "stage": "专项验收",
       "category": "special_acceptance",
       "aliases": ["规划核实", "建设工程规划核实合格证"]
+    }
+  ],
+  "consistency_rules": [
+    {
+      "rule_id": "R-001",
+      "name": "字段适用范围",
+      "type": "field_scope",
+      "scopes": [
+        {
+          "field": "project_name",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "监理合同",
+            "施工单位工程竣工报告",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "project_code",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "owner",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "监理合同",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "contractor",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "施工单位工程竣工报告",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "supervisor",
+          "documents": [
+            "监理合同",
+            "监理规划",
+            "监理评估报告",
+            "工程质量评估报告"
+          ]
+        },
+        {
+          "field": "designer",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "设计单位工程质量检查报告",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "address",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "start_date",
+          "documents": [
+            "建筑工程施工许可证",
+            "施工许可证",
+            "施工合同",
+            "施工单位工程竣工报告"
+          ]
+        },
+        {
+          "field": "finish_date",
+          "documents": [
+            "施工单位工程竣工报告",
+            "工程竣工验收报告"
+          ]
+        },
+        {
+          "field": "contract_amount",
+          "documents": [
+            "施工合同",
+            "施工单位工程竣工报告",
+            "工程竣工验收报告"
+          ]
+        }
+      ]
+    },
+    {
+      "rule_id": "R-002",
+      "name": "manifest 字段一致性",
+      "type": "manifest_consistency",
+      "operator": "all_values_equal"
+    },
+    {
+      "rule_id": "R-003",
+      "name": "无 manifest 值时的跨文件一致性",
+      "type": "cross_file_consistency",
+      "operator": "all_values_equal",
+      "min_values": 2,
+      "only_when_manifest_empty": true
     }
   ]
 }

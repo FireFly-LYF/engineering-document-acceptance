@@ -1,28 +1,49 @@
 import { useState } from 'react'
-import { UNNAMED_PROJECT } from '../store'
+import { PROJECT_TYPE_OPTIONS } from '../store'
+import type { ProjectType } from '../types'
 
 export function NewProjectModal({
   onClose,
   onCreate,
 }: {
   onClose: () => void
-  onCreate: (name: string, batchLabel: string) => void
+  onCreate: (name: string, projectType: ProjectType, batchLabel: string) => void
 }) {
   const [name, setName] = useState('')
+  const [projectType, setProjectType] = useState<ProjectType | ''>('')
   const [batch, setBatch] = useState('')
+
+  const trimmedName = name.trim()
+  const canCreate = Boolean(trimmedName && projectType)
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>新建工程批次</h3>
-        <p>可不填名称：首次上传后将自动使用第一个文件名，之后仍可重命名。</p>
+        <h3>新建核查任务</h3>
+        <p>请选择工程类型并填写项目名称；二者均为必填，创建后写入任务身份。</p>
         <div className="field">
-          <label>工程名称（可选）</label>
+          <label>工程类型（必选）</label>
+          <select
+            value={projectType}
+            onChange={(e) => setProjectType(e.target.value as ProjectType | '')}
+            autoFocus
+          >
+            <option value="" disabled>
+              请选择工程类型
+            </option>
+            {PROJECT_TYPE_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label>项目名称（必填）</label>
           <input
-            placeholder="留空则暂为未命名，上传后自动命名"
+            placeholder="例如：云港新区市民活动中心图书馆工程"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            autoFocus
           />
         </div>
         <div className="field">
@@ -40,7 +61,11 @@ export function NewProjectModal({
           <button
             type="button"
             className="btn btn-copper"
-            onClick={() => onCreate(name.trim() || UNNAMED_PROJECT, batch)}
+            disabled={!canCreate}
+            onClick={() => {
+              if (!projectType || !trimmedName) return
+              onCreate(trimmedName, projectType, batch)
+            }}
           >
             创建
           </button>

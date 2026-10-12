@@ -1,4 +1,4 @@
-import type { ProjectFile, UploadSource } from '../types'
+import type { ProjectFile, ProjectType, UploadSource } from '../types'
 
 export type AuditLaunch = {
   caseId: string
@@ -37,11 +37,16 @@ async function parseError(res: Response): Promise<string> {
   return res.statusText || `HTTP ${res.status}`
 }
 
-export async function apiCreateCase(id: string, name: string, batchLabel?: string) {
+export async function apiCreateCase(
+  id: string,
+  name: string,
+  projectType: ProjectType,
+  batchLabel?: string,
+) {
   const res = await fetch('/api/cases', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, name, batchLabel }),
+    body: JSON.stringify({ id, name, projectType, batchLabel }),
   })
   if (!res.ok) throw new Error(await parseError(res))
   return res.json()
@@ -181,11 +186,15 @@ export async function apiDeleteFolder(caseId: string, folderPath: string) {
   if (!res.ok) throw new Error(await parseError(res))
 }
 
-export async function apiStartAudit(caseId: string, name: string): Promise<AuditLaunch> {
+export async function apiStartAudit(
+  caseId: string,
+  name: string,
+  projectType: ProjectType,
+): Promise<AuditLaunch> {
   const res = await fetch(`/api/cases/${encodeURIComponent(caseId)}/audit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, projectType }),
   })
   if (!res.ok) throw new Error(await parseError(res))
   return res.json() as Promise<AuditLaunch>

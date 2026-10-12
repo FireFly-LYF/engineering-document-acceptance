@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { ClipboardCheck } from 'lucide-react'
 
 export function IdentityGate({ onEnter }: { onEnter: (name: string) => void }) {
-  const [name, setName] = useState('')
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
 
   return (
     <div className="gate">
@@ -11,23 +12,34 @@ export function IdentityGate({ onEnter }: { onEnter: (name: string) => void }) {
           <ClipboardCheck size={28} strokeWidth={2} />
         </div>
         <h1>工程文件核验</h1>
-        <p>
-          按用户与工程批次管理上传材料。支持 ZIP、PDF 与本地文件夹，可分目录整理，核查后对照归档清单为文件与目录打标。
-        </p>
         <form
           onSubmit={(e) => {
             e.preventDefault()
-            onEnter(name)
+            onEnter(username)
           }}
         >
           <div className="field">
-            <label htmlFor="displayName">您的称呼</label>
+            <label htmlFor="username">用户名</label>
             <input
-              id="displayName"
-              placeholder="例如：张工 / 资料员小陈"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              id="username"
+              name="username"
+              autoComplete="username"
+              placeholder="用户名"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               autoFocus
+            />
+          </div>
+          <div className="field">
+            <label htmlFor="password">密码</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="密码"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
           <button className="btn btn-primary" type="submit" style={{ width: '100%' }}>

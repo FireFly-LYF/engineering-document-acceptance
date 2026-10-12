@@ -1,0 +1,26 @@
+跨类型工程档案归档目录（道路 / 桥梁 / 管线 / 建筑共用）
+
+本目录 PDF 不纳入 Git。执行：python tools/fetch_archive_catalogs.py
+
+1. gbt-50328-2014-archive-code.pdf
+   名称：建设工程文件归档规范 GB/T 50328（公开转载本）
+   URL：http://www.sxmtjl.com/uploads/files/2015/05/431200c9521bc4592dd3e9cb7fb22896.pdf
+   用途：国标将工程分为建筑 / 道路 / 桥梁 / 地下管线四类归档范围
+   注意：第三方转载，正式引用以国家标准文本为准
+
+2. sg-archive-guide-2025.pdf
+   名称：韶关市建设工程档案编制指南（含附录 B 道路、C 桥梁、D 地下管线）
+   URL：https://www.sg.gov.cn/attachment/0/286/286198/2779605.pdf
+   用途：地方细化清单（准备/监理/施工/竣工验收/竣工图）
+
+3. jm-archive-unified-catalog.pdf
+   名称：江门市建设工程竣工验收技术资料和工程档案验收归档统一目录
+   URL：http://www.jiangmen.gov.cn/attachment/0/341/341760/3304209.pdf
+   用途：第二部分市政基础设施（道路/桥涵等）；第三部分管线工程
+   说明：与 public-pdfs/ 下同名文件一致（可互相复制）
+
+4. sz-archive-guide-2025.pdf
+   名称：深圳市建设工程文件归档与档案验收移交指南（2025版）
+   URL：https://zjj.sz.gov.cn/attachment/1/1628/1628043/12250554.pdf
+   用途：市政工程归档范围与验收移交规则
+   说明：与 public-pdfs/ 下同名文件一致

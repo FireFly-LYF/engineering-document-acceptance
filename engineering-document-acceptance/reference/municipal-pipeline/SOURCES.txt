@@ -1,0 +1,19 @@
+市政 / 地下管线工程归档参考
+
+本目录 PDF 不纳入 Git。执行：python tools/fetch_archive_catalogs.py
+
+1. underground-pipeline-data-management.pdf
+   名称：地下管线工程资料管理技术规程（公开转载）
+   URL：https://www.csgpc.org/ueditor/php/upload/file/20260609/1780990079295399.pdf
+   用途：地下管线准备/监理/施工/竣工资料/竣工图；强调竣工测量成果归档
+
+交叉引用（见 ../archive-catalogs/）
+--------------------------------
+- sg-archive-guide-2025.pdf 附录 D 地下管线工程文件归档范围
+  （含闭水试验、压力管道水压试验、管线竣工图、竣工测量等）
+- jm-archive-unified-catalog.pdf 第三部分：管线工程（给水/排水/燃气/电力/电信 + 竣工测量）
+- gbt-50328-2014-archive-code.pdf 附录 B.0.3 地下管线
+- sz-archive-guide-2025.pdf 市政/管线相关归档范围
+
+规则文件 rules/municipal-pipeline.json 依据上述公开目录提炼演示级必需项，
+非某一地市全文照录；管线类型（给水/排水/燃气等）可用 aliases 兼容匹配。

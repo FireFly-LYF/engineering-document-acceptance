@@ -38,15 +38,16 @@ import {
   suggestProjectName,
 } from './lib/files'
 import {
-  UNNAMED_PROJECT,
+  canStartFormalAudit,
   createProject,
   createUser,
   isUnnamedProject,
   loadState,
+  projectTypeLabel,
   saveState,
   touchProject,
 } from './store'
-import type { AppState, Project, ProjectFile } from './types'
+import type { AppState, Project, ProjectFile, ProjectType } from './types'
 
 function listedToProjectFiles(
   listed: Array<{ relativePath: string; name: string; size: number; kind: 'pdf' | 'other' }>,
@@ -182,10 +183,12 @@ function App() {
   }
 
   function enter(name: string) {
-    const trimmed = name.trim() || '核查员'
+    const trimmed = name.trim()
     const prev = loadState()
     const reuse =
-      prev.user && prev.user.displayName === trimmed ? prev.user : createUser(trimmed)
+      trimmed && prev.user && prev.user.displayName === trimmed
+        ? prev.user
+        : createUser(trimmed)
     setState({
       user: reuse,
       projects: prev.projects,
@@ -197,17 +200,23 @@ function App() {
     setState({ user: null, projects: state.projects, activeProjectId: null })
   }
 
-  async function addProject(name: string, batchLabel: string) {
+  async function addProject(name: string, projectType: ProjectType, batchLabel: string) {
     if (!state.user) return
-    const p = createProject(
-      state.user.id,
-      state.user.displayName,
-      name,
-      batchLabel,
-      state.projects.map((x) => x.id),
-    )
+    let p: Project
     try {
-      await apiCreateCase(p.id, p.name, p.batchLabel)
+      p = createProject(
+        state.user.id,
+        name,
+        projectType,
+        batchLabel,
+        state.projects.map((x) => x.id),
+      )
+    } catch (e) {
+      showError(e instanceof Error ? e.message : String(e))
+      return
+    }
+    try {
+      await apiCreateCase(p.id, p.name, p.projectType, p.batchLabel)
     } catch (e) {
       showError(e instanceof Error ? e.message : String(e))
       return
@@ -234,8 +243,12 @@ function App() {
       setRenaming(false)
       return
     }
-    const next = renameDraft.trim() || UNNAMED_PROJECT
+    const next = renameDraft.trim()
     setRenaming(false)
+    if (!next) {
+      showError('项目名称不能为空')
+      return
+    }
     if (next === active.name) return
     try {
       await apiRenameCase(active.id, next)
@@ -417,7 +430,16 @@ function App() {
   }
 
   async function onAudit() {
-    if (!active || !active.files.length) return
+    if (!active || !canStartFormalAudit(active)) {
+      if (active && isUnnamedProject(active.name)) {
+        showError('请先填写项目名称后再开始核查')
+      } else if (active && !active.files.length) {
+        showError('请先上传文件到本工程')
+      } else if (active) {
+        showError('请先选择工程类型后再开始核查')
+      }
+      return
+    }
     // 幂等：已在核查中 / 请求未完成时直接忽略
     if (active.auditStatus === 'auditing' || auditLockRef.current) return
     auditLockRef.current = true
@@ -447,8 +469,8 @@ function App() {
       statementFileName: undefined,
     }))
     try {
-      await apiCreateCase(projectId, active.name, active.batchLabel)
-      const launch = await apiStartAudit(projectId, active.name)
+      await apiCreateCase(projectId, active.name, active.projectType, active.batchLabel)
+      const launch = await apiStartAudit(projectId, active.name, active.projectType)
       if (launch.sessionId) rememberSharedSession(launch.sessionId, launch.aghUrl)
       updateProject(projectId, (p) => ({
         ...p,
@@ -550,9 +572,8 @@ function App() {
         <div className="user-chip">
           <div style={{ flex: 1, minWidth: 0 }}>
             <strong>{state.user.displayName}</strong>
-            <span>用户 ID · {state.user.id}</span>
           </div>
-          <button type="button" className="btn btn-ghost" title="退出身份" onClick={logout}>
+          <button type="button" className="btn btn-ghost" title="退出" onClick={logout}>
             <LogOut size={16} />
           </button>
         </div>
@@ -578,6 +599,7 @@ function App() {
               >
                 <div className="name">{p.name}</div>
                 <div className="meta">
+                  <span>{projectTypeLabel(p.projectType)}</span>
                   <span>{p.batchLabel}</span>
                   <span>{auditStatusLabel(p.auditStatus)}</span>
                   <span>{p.files.length} 份</span>
@@ -589,7 +611,7 @@ function App() {
 
         <button type="button" className="btn btn-copper" onClick={() => setShowNew(true)}>
           <Plus size={18} />
-          新建工程批次
+          新建核查任务
         </button>
       </aside>
 
@@ -649,11 +671,7 @@ function App() {
                   </div>
                 )}
                 <p className="sub">
-                  {active.batchLabel}
-                  {' · '}
-                  cases/{active.id}/files/
-                  {' · '}
-                  更新于 {new Date(active.updatedAt).toLocaleString('zh-CN')}
+                  {new Date(active.updatedAt).toLocaleString('zh-CN')}
                 </p>
               </div>
             </div>
@@ -761,7 +779,10 @@ function App() {
       </main>
 
       {showNew && (
-        <NewProjectModal onClose={() => setShowNew(false)} onCreate={(n, b) => void addProject(n, b)} />
+        <NewProjectModal
+          onClose={() => setShowNew(false)}
+          onCreate={(n, t, b) => void addProject(n, t, b)}
+        />
       )}
     </div>
   )
