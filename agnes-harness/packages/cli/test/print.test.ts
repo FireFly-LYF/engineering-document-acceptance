@@ -79,6 +79,27 @@ describe('runPrint in text mode', () => {
     expect(methods.indexOf('_agnes/v1/session.attach')).toBeLessThan(methods.indexOf('session/prompt'))
   })
 
+  it('forwards --key as sessionKey on session/new for concurrent -p on one cwd', async () => {
+    const ep = scriptedEndpoint()
+    const key = 'agnes:local:local-dev:cli:session:eda-case-1'
+    await runPrint(await booted(ep), parseArgs(['-p', 'q', '--key', key]), io())
+    const created = ep.calls.find((c) => c.method === 'session/new')?.params as {
+      _meta?: { 'ai.agnes.harness'?: { sessionKey?: string } }
+    }
+    expect(created?._meta?.['ai.agnes.harness']?.sessionKey).toBe(key)
+  })
+
+  it('refuses --key together with --resume', async () => {
+    const ep = scriptedEndpoint()
+    const e = await runPrint(
+      await booted(ep),
+      parseArgs(['-p', 'q', '--resume', FAKE_SESSION_ID, '--key', 'other']),
+      io(),
+    ).catch((x: unknown) => x)
+    expect(e).toMatchObject({ name: 'UsageError', code: 2 })
+    expect(ep.calls.some((c) => c.method === 'session/new' || c.method === 'session/load')).toBe(false)
+  })
+
   it('a parked turn exits 3, prints the ticket, and names the reason on stderr', async () => {
     const o = io()
     const ep = scriptedEndpoint({ reason: 'parked', parkedTicket: 'tk-123' })

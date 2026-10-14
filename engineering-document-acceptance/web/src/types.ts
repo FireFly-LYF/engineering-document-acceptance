@@ -4,6 +4,7 @@ export type FindingStatus =
   | 'missing'
   | 'suspect_duplicate_or_misfiled'
   | 'needs_human_review'
+  | 'unmatched'
   | 'unscanned'
 
 /** 工程类型 slug；与 rules_profile / 规则文件名一致 */
@@ -50,6 +51,7 @@ export interface AuditSummary {
   missing: number
   misfiled: number
   review: number
+  unmatched: number
   totalFiles: number
   generatedAt?: string
   note?: string

@@ -76,6 +76,10 @@ export function AuditPanel({
             <b>{s?.review ?? '—'}</b>
             <span>需复核</span>
           </div>
+          <div className="stat">
+            <b>{s?.unmatched ?? '—'}</b>
+            <span>未匹配</span>
+          </div>
         </div>
 
         <div

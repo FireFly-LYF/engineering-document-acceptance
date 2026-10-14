@@ -106,11 +106,12 @@ function App() {
     }
   })
   const cancelRenameRef = useRef(false)
-  const pollRef = useRef<number | null>(null)
-  const sessionPollRef = useRef<number | null>(null)
-  const statementPollRef = useRef<number | null>(null)
-  /** 防止连点「开始核查」重复发起 */
-  const auditLockRef = useRef(false)
+  /** 按工程隔离轮询，支持多工程同时核查 */
+  const findingsPollsRef = useRef(new Map<string, number>())
+  const sessionPollsRef = useRef(new Map<string, number>())
+  const statementPollsRef = useRef(new Map<string, number>())
+  /** 按工程防连点；不同工程可并行发起 */
+  const auditLocksRef = useRef(new Set<string>())
 
   function rememberSharedSession(sessionId: string | null | undefined, aghUrl?: string | null) {
     if (!sessionId) return
@@ -142,9 +143,12 @@ function App() {
 
   useEffect(() => {
     return () => {
-      if (pollRef.current) window.clearInterval(pollRef.current)
-      if (sessionPollRef.current) window.clearInterval(sessionPollRef.current)
-      if (statementPollRef.current) window.clearInterval(statementPollRef.current)
+      for (const id of findingsPollsRef.current.values()) window.clearInterval(id)
+      for (const id of sessionPollsRef.current.values()) window.clearInterval(id)
+      for (const id of statementPollsRef.current.values()) window.clearInterval(id)
+      findingsPollsRef.current.clear()
+      sessionPollsRef.current.clear()
+      statementPollsRef.current.clear()
     }
   }, [])
 
@@ -355,7 +359,6 @@ function App() {
     },
   ) {
     setFindingsHint(null)
-    auditLockRef.current = false
     const noPrimary = opts?.primaryStatus === 'no_primary'
     const note =
       opts?.note ||
@@ -416,15 +419,38 @@ function App() {
     })
   }
 
-  function stopStatementPoll() {
-    if (statementPollRef.current) {
-      window.clearInterval(statementPollRef.current)
-      statementPollRef.current = null
+  function stopStatementPoll(projectId: string) {
+    const timer = statementPollsRef.current.get(projectId)
+    if (timer != null) {
+      window.clearInterval(timer)
+      statementPollsRef.current.delete(projectId)
     }
   }
 
+  function stopSessionPoll(projectId: string) {
+    const timer = sessionPollsRef.current.get(projectId)
+    if (timer != null) {
+      window.clearInterval(timer)
+      sessionPollsRef.current.delete(projectId)
+    }
+  }
+
+  function stopFindingsPoll(projectId: string) {
+    const timer = findingsPollsRef.current.get(projectId)
+    if (timer != null) {
+      window.clearInterval(timer)
+      findingsPollsRef.current.delete(projectId)
+    }
+  }
+
+  function stopProjectPolls(projectId: string) {
+    stopFindingsPoll(projectId)
+    stopSessionPoll(projectId)
+    // 不打断说明文件轮询：findings 就绪后仍需等 docx
+  }
+
   function markStatementAbsent(projectId: string) {
-    stopStatementPoll()
+    stopStatementPoll(projectId)
     updateProject(projectId, (p) =>
       p.statementStatus === 'ready'
         ? p
@@ -437,7 +463,7 @@ function App() {
   }
 
   function startStatementPoll(projectId: string) {
-    stopStatementPoll()
+    stopStatementPoll(projectId)
     let ticks = 0
     const tick = async () => {
       try {
@@ -448,7 +474,7 @@ function App() {
             statementStatus: 'ready',
             statementFileName: st.fileName || undefined,
           }))
-          stopStatementPoll()
+          stopStatementPoll(projectId)
           return
         }
         // Agent 已结束仍无 docx → 不再假装「正在生成」
@@ -466,95 +492,77 @@ function App() {
       }
     }
     void tick()
-    statementPollRef.current = window.setInterval(() => {
-      ticks += 1
-      void tick()
-      if (ticks >= 150) markStatementAbsent(projectId)
-    }, 2000)
-  }
-
-  function stopPolling() {
-    if (pollRef.current) {
-      window.clearInterval(pollRef.current)
-      pollRef.current = null
-    }
-    if (sessionPollRef.current) {
-      window.clearInterval(sessionPollRef.current)
-      sessionPollRef.current = null
-    }
-    // 不打断说明文件轮询：findings 就绪后仍需等 docx
+    statementPollsRef.current.set(
+      projectId,
+      window.setInterval(() => {
+        ticks += 1
+        void tick()
+        if (ticks >= 150) markStatementAbsent(projectId)
+      }, 2000),
+    )
   }
 
   function startSessionPoll(projectId: string) {
-    if (sessionPollRef.current) {
-      window.clearInterval(sessionPollRef.current)
-      sessionPollRef.current = null
-    }
+    stopSessionPoll(projectId)
     let ticks = 0
-    sessionPollRef.current = window.setInterval(() => {
-      ticks += 1
-      void (async () => {
-        try {
-          const st = await apiAuditStatus(projectId)
-          if (st.sessionId) {
-            rememberSharedSession(st.sessionId, st.aghUrl)
-            updateProject(projectId, (p) => ({
-              ...p,
-              aghSessionId: st.sessionId || undefined,
-              aghUrl: st.aghUrl,
-              aghPid: st.pid ?? p.aghPid,
-            }))
-            if (sessionPollRef.current) {
-              window.clearInterval(sessionPollRef.current)
-              sessionPollRef.current = null
+    sessionPollsRef.current.set(
+      projectId,
+      window.setInterval(() => {
+        ticks += 1
+        void (async () => {
+          try {
+            const st = await apiAuditStatus(projectId)
+            if (st.sessionId) {
+              rememberSharedSession(st.sessionId, st.aghUrl)
+              updateProject(projectId, (p) => ({
+                ...p,
+                aghSessionId: st.sessionId || undefined,
+                aghUrl: st.aghUrl,
+                aghPid: st.pid ?? p.aghPid,
+              }))
+              stopSessionPoll(projectId)
             }
+          } catch {
+            /* ignore */
           }
-        } catch {
-          /* ignore */
-        }
-        if (ticks >= 60 && sessionPollRef.current) {
-          window.clearInterval(sessionPollRef.current)
-          sessionPollRef.current = null
-        }
-      })()
-    }, 250)
+          if (ticks >= 60) stopSessionPoll(projectId)
+        })()
+      }, 250),
+    )
   }
 
   function startFindingsPoll(projectId: string) {
-    if (pollRef.current) {
-      window.clearInterval(pollRef.current)
-      pollRef.current = null
-    }
+    stopFindingsPoll(projectId)
     let ticks = 0
-    pollRef.current = window.setInterval(() => {
-      ticks += 1
-      void (async () => {
-        try {
-          const pack = await apiGetFindings(projectId)
-          if (pack.sessionId) {
-            rememberSharedSession(pack.sessionId, pack.aghUrl)
-            updateProject(projectId, (p) => ({
-              ...p,
-              aghSessionId: pack.sessionId || p.aghSessionId,
-              aghUrl: pack.aghUrl || p.aghUrl,
-            }))
+    findingsPollsRef.current.set(
+      projectId,
+      window.setInterval(() => {
+        ticks += 1
+        void (async () => {
+          try {
+            const pack = await apiGetFindings(projectId)
+            if (pack.sessionId) {
+              rememberSharedSession(pack.sessionId, pack.aghUrl)
+              updateProject(projectId, (p) => ({
+                ...p,
+                aghSessionId: pack.sessionId || p.aghSessionId,
+                aghUrl: pack.aghUrl || p.aghUrl,
+              }))
+            }
+            if (pack.ready && pack.findings && Array.isArray(pack.findings.items)) {
+              applyFindingsPack(projectId, pack)
+              stopProjectPolls(projectId)
+            }
+          } catch {
+            /* 轮询中忽略瞬时错误 */
           }
-          if (pack.ready && pack.findings && Array.isArray(pack.findings.items)) {
-            applyFindingsPack(projectId, pack)
-            stopPolling()
+          if (ticks >= 80) {
+            stopFindingsPoll(projectId)
+            setFindingsHint('尚未生成 findings.json，请稍候或在 AGH 网页查看进度')
           }
-        } catch {
-          /* 轮询中忽略瞬时错误 */
-        }
-        if (ticks >= 80) {
-          if (pollRef.current) {
-            window.clearInterval(pollRef.current)
-            pollRef.current = null
-          }
-          setFindingsHint('尚未生成 findings.json，请稍候或在 AGH 网页查看进度')
-        }
-      })()
-    }, 4000)
+        })()
+      }, 4000),
+    )
   }
 
   async function onAudit() {
@@ -568,14 +576,14 @@ function App() {
       }
       return
     }
-    // 幂等：已在核查中 / 请求未完成时直接忽略
-    if (active.auditStatus === 'auditing' || auditLockRef.current) return
-    auditLockRef.current = true
-    stopPolling()
-    stopStatementPoll()
-    setFindingsHint(null)
     const projectId = active.id
-    // 清掉旧会话（含调试「只回复OK」），只跳本轮 -p 新建的会话
+    // 幂等：本工程已在核查中 / 请求未完成时直接忽略（其它工程可并行）
+    if (active.auditStatus === 'auditing' || auditLocksRef.current.has(projectId)) return
+    auditLocksRef.current.add(projectId)
+    stopProjectPolls(projectId)
+    stopStatementPoll(projectId)
+    setFindingsHint(null)
+    // 清掉共享会话缓存，避免跳到旧的「只回复OK」；本轮以 project.aghSessionId 为准
     setSharedAghSessionId(null)
     setSharedAghUrl(null)
     try {
@@ -610,31 +618,32 @@ function App() {
         summary: undefined,
       }))
       if (launch.status === 'error') {
-        auditLockRef.current = false
         showError(launch.message)
         return
       }
       startSessionPoll(projectId)
       startFindingsPoll(projectId)
     } catch (e) {
-      auditLockRef.current = false
       updateProject(projectId, (p) => ({
         ...p,
         auditStatus: 'error',
         aghMessage: undefined,
       }))
       showError(e instanceof Error ? e.message : String(e))
+    } finally {
+      auditLocksRef.current.delete(projectId)
     }
   }
 
   async function onCancelAudit() {
     if (!active) return
-    stopPolling()
-    stopStatementPoll()
+    const projectId = active.id
+    stopProjectPolls(projectId)
+    stopStatementPoll(projectId)
     setFindingsHint(null)
-    auditLockRef.current = false
+    auditLocksRef.current.delete(projectId)
     const pid = active.aghPid
-    updateProject(active.id, (p) => ({
+    updateProject(projectId, (p) => ({
       ...p,
       auditStatus: p.files.length ? 'ready' : 'draft',
       aghMessage: undefined,
@@ -643,7 +652,7 @@ function App() {
       statementFileName: p.statementStatus === 'ready' ? p.statementFileName : undefined,
     }))
     try {
-      await apiCancelAudit(active.id, pid)
+      await apiCancelAudit(projectId, pid)
     } catch {
       /* 本地状态已打断；杀进程失败可忽略 */
     }
@@ -949,6 +958,7 @@ function App() {
                       caseId={active.id}
                       detail={active.auditDetail}
                       selectedFile={selectedFile}
+                      files={active.files}
                       findingItems={active.findingItems}
                       onSelectFilePath={(rel) => {
                         const norm = normalizeCaseFilePath(rel)

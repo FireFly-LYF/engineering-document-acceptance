@@ -32,6 +32,7 @@ function statusBadge(status?: string) {
   if (status === 'suspect_duplicate_or_misfiled') {
     return <span className="badge warn">错传/重复</span>
   }
+  if (status === 'unmatched') return <span className="badge neutral">未匹配</span>
   return status ? <span className="badge neutral">{status}</span> : null
 }
 
@@ -75,12 +76,14 @@ export function AuditResults({
   caseId,
   detail,
   selectedFile,
+  files,
   findingItems,
   onSelectFilePath,
 }: {
   caseId: string
   detail?: AuditDetail | null
   selectedFile?: ProjectFile | null
+  files?: ProjectFile[]
   findingItems?: RuleFindingItem[]
   onSelectFilePath?: (relativePath: string) => void
 }) {
@@ -94,6 +97,26 @@ export function AuditResults({
     (i) => i.code === 'RULE' || (i.rule_ids && i.rule_ids.length > 0),
   )
   const rules = ruleFromConsensus.length ? ruleFromConsensus : ruleFromFindings
+  const unmatchedRules: RuleFindingItem[] = useMemo(
+    () =>
+      (files || [])
+        .filter((f) => f.annotation?.status === 'unmatched')
+        .map((f) => ({
+          code: 'UNMATCHED',
+          name: f.name,
+          field_name: f.name,
+          status: 'unmatched',
+          severity: f.annotation?.severity || 'info',
+          reason: f.annotation?.reason || '已扫描，但未匹配到清单条目',
+          suggestion: f.annotation?.suggestion,
+          matched_file: f.relativePath,
+        })),
+    [files],
+  )
+  const rulesWithUnmatched = useMemo(
+    () => [...rules, ...unmatchedRules],
+    [rules, unmatchedRules],
+  )
 
   const selectedRel = selectedFile
     ? normalizeCaseFilePath(selectedFile.relativePath)
@@ -140,7 +163,11 @@ export function AuditResults({
       ? caseFileRawUrl(caseId, activePreviewPath, previewPage)
       : null
 
-  if (!detail?.ready && !consensusFields.length && !rules.length) {
+  if (
+    !detail?.ready &&
+    !consensusFields.length &&
+    !rulesWithUnmatched.length
+  ) {
     return (
       <div className="audit-results empty-inline">
         核查完成后将在此展示字段比较、规则结果与文件字段；请先完成核查或点击「刷新核查结果」。
@@ -263,25 +290,31 @@ export function AuditResults({
 
       {tab === 'rules' && (
         <div className="result-pane">
-          {!rules.length ? (
-            <div className="empty-inline">暂无规则级结果（冲突时会出现 RULE）。</div>
+          {!rulesWithUnmatched.length ? (
+            <div className="empty-inline">
+              暂无规则级结果（字段冲突会出现 RULE；未匹配清单的文件也会列在此处）。
+            </div>
           ) : (
             <div className="result-card">
               <div className="result-card-bd">
                 <table className="result-table result-table--rules">
                   <thead>
                     <tr>
-                      <th>字段</th>
+                      <th>字段 / 文件</th>
                       <th>状态</th>
                       <th>说明</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {rules.map((r, idx) => (
-                      <tr key={`${r.code}-${r.field}-${idx}`}>
+                    {rulesWithUnmatched.map((r, idx) => (
+                      <tr key={`${r.code}-${r.field || r.matched_file}-${idx}`}>
                         <td>
                           <div className="rule-field">
-                            <strong>{r.field_name || r.name || '规则'}</strong>
+                            <strong>
+                              {r.status === 'unmatched'
+                                ? r.field_name || r.name || '未匹配文件'
+                                : r.field_name || r.name || '规则'}
+                            </strong>
                             {consistencyLabel(r.consistency) ? (
                               <span className="badge neutral">
                                 {consistencyLabel(r.consistency)}

@@ -83,6 +83,10 @@ export function refuseWhatCannotBeHonoured(p: ParsedArgs): void {
     )
   if (p.preset !== undefined && (p.continue || resumedSessionId(p) !== undefined))
     throw new UsageError('--preset cannot be applied to a resumed session: session/load takes no preset')
+  // `--key` is for session/new only. A resume already names the session; inventing another key would
+  // either be ignored or open a second ledger under a name the user never typed.
+  if (p.key !== undefined && (p.continue || resumedSessionId(p) !== undefined))
+    throw new UsageError('--key cannot be applied to a resumed session')
 }
 
 async function openSession(booted: Booted, p: ParsedArgs, cwd: string): Promise<Session> {
@@ -94,10 +98,18 @@ async function openSession(booted: Booted, p: ParsedArgs, cwd: string): Promise<
   // there the cwd becomes that session's own -- sdk's default empty string put every relative path
   // a tool was handed outside the workspace root, which only a resumed run against a real model
   // showed, because a unit test on either side agreed with itself.
+  //
+  // Without `--key`, session/new still defaults to the durable cli:workspace:<cwd-hash> key (one
+  // session per workspace). Callers that need concurrent -p runs on the same cwd must pass a
+  // distinct `--key` (EDA audits do this per case).
   const resume = await sessionToOpen(booted, p, cwd)
   if (resume !== undefined) return booted.client.session.load(resume, { cwd })
   await booted.client.workspace.add(cwd)
-  return booted.client.session.new({ cwd, ...(p.preset ? { preset: p.preset } : {}) })
+  return booted.client.session.new({
+    cwd,
+    ...(p.preset ? { preset: p.preset } : {}),
+    ...(p.key ? { sessionKey: p.key } : {}),
+  })
 }
 
 /** Resolves to true if `p` settled within `ms`, false if the deadline came first. */

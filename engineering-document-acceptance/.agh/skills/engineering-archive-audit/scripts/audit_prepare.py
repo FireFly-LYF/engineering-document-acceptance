@@ -771,6 +771,11 @@ _DOC_LIKE_NAME = re.compile(
     r"^[A-G]-\d{2}\b|未命名工程|许可|合同|报告|证明|记录|细则|报审|验收|竣工图|监理规划|施工组织"
 )
 
+# 占位标识名（含纯 ASCII 任务 id，如 demo-housing-mixed）：
+# 精确匹配占位词，或不含中文字符的短名，均视为弱名/占位名
+_ASCII_ONLY = re.compile(r"^[^\u4e00-\u9fff]*$")
+_WEAK_ASCII_LEN_THRESHOLD = 24
+
 # 用户未认真填写时的占位名；过短名称也视为弱名
 _WEAK_EXACT = {
     "未命名工程",
@@ -792,15 +797,24 @@ _WEAK_EXACT = {
 
 
 def is_weak_project_name(name: str) -> bool:
-    """Placeholder / document-title names must not be used as misfile anchors."""
+    """Placeholder / document-title names must not be used as misfile anchors.
+
+    弱名判定原则：占位符（精确占位词、无中文字符的任务 id 标识、文种标题样式）
+    不得用作错传锚点。含中文字符的真实工程名（无论是否包含 demo/测试 等子串）
+    在未被精确占位列表命中时，视为有效名称。
+    """
     n = (name or "").strip()
     if not n:
         return True
     if n in _WEAK_EXACT or n.lower() in _WEAK_EXACT:
         return True
-    # 「工程」「XX」等过短占位，真实工程名通常更长
+    # 无中文字符的名称：视为占位标识（任务 id、代码等），判为弱名
+    if _ASCII_ONLY.match(n):
+        return True
+    # 含中文字符的短名（≤3 字）仍判为弱名
     if len(n) <= 3:
         return True
+    # 文种样式（许可证/合同等）仍是弱名
     if _DOC_LIKE_NAME.search(n):
         return True
     return False
@@ -811,7 +825,11 @@ def majority_project_name(file_rows: list[dict]) -> str:
     counts: dict[str, int] = {}
     for row in file_rows:
         proj = str((row.get("fields") or {}).get("项目名称") or "").strip()
-        if not proj or is_weak_project_name(proj):
+        if not proj:
+            continue
+        # 弱名过滤：仅排除精确占位或文种样式名，避免把真实工程名
+        # 误判为弱名（如包含 demo 子串的工作副本命名）
+        if is_weak_project_name(proj):
             continue
         # Filename cue「滨河」alone is often the planted misfile; still count for majority.
         counts[proj] = counts.get(proj, 0) + 1
@@ -839,8 +857,11 @@ def is_misfiled_row(row: dict, anchor_name: str) -> bool:
         if "滨河" in fname:
             return True
         return False
-    if proj and proj != anchor_name:
-        return True
+    # manifest 工程名是占位标识（短/弱名）时，PDF 项目名称与之不同是正常现象，
+    # 不得用 proj != anchor 作为错传信号，仅依赖明确文件线索（如「滨河」硬线索）
+    if not is_weak_project_name(anchor_name):
+        if proj and proj != anchor_name:
+            return True
     if "滨河" not in anchor_name and "滨河" in fname:
         return True
     return False

@@ -30,7 +30,8 @@ function statusOf(raw: string): FindingStatus {
     raw === 'provided' ||
     raw === 'missing' ||
     raw === 'suspect_duplicate_or_misfiled' ||
-    raw === 'needs_human_review'
+    raw === 'needs_human_review' ||
+    raw === 'unmatched'
   ) {
     return raw
   }
@@ -68,8 +69,10 @@ export function annotateFromFindings(
 
     if (!hit) {
       const annotation: FileAnnotation = {
-        status: 'unscanned',
-        reason: '未命中清单条目（待接入完整核查脚本）',
+        status: 'unmatched',
+        reason: '已扫描，但未匹配到清单条目',
+        suggestion: '确认是否错传、命名不符，或无需纳入本批次清单',
+        severity: 'info',
       }
       return { ...file, annotation }
     }
@@ -107,6 +110,7 @@ function buildFolderMarks(files: ProjectFile[]): FolderMark[] {
     const mis = counts.suspect_duplicate_or_misfiled || 0
     const rev = counts.needs_human_review || 0
     const miss = counts.missing || 0
+    const unmatched = counts.unmatched || 0
     const ok = counts.provided || 0
     let tone: FolderMark['tone'] = 'neutral'
     let label = '待核查'
@@ -120,6 +124,10 @@ function buildFolderMarks(files: ProjectFile[]): FolderMark[] {
       tone = 'warn'
       label = '需复核'
       summary = `${rev} 份需人工确认`
+    } else if (unmatched > 0) {
+      tone = 'warn'
+      label = '含未匹配'
+      summary = `未匹配清单 ${unmatched} 份`
     } else if (ok > 0 && ok + (counts.unscanned || 0) === list.length) {
       tone = 'ok'
       label = '基本材料齐全'
@@ -137,17 +145,20 @@ function buildSummary(files: ProjectFile[], missingExtra: number): AuditSummary 
   let missing = missingExtra
   let misfiled = 0
   let review = 0
+  let unmatched = 0
   for (const f of files) {
     const st = f.annotation?.status
     if (st === 'provided') provided += 1
     if (st === 'suspect_duplicate_or_misfiled') misfiled += 1
     if (st === 'needs_human_review') review += 1
+    if (st === 'unmatched') unmatched += 1
   }
   return {
     provided,
     missing,
     misfiled,
     review,
+    unmatched,
     totalFiles: files.length,
     generatedAt: new Date().toISOString(),
     note: '框架演示：标记逻辑对齐 _work/findings；完整核查将调用 audit_prepare.py',

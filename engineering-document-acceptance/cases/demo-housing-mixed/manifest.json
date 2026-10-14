@@ -1,6 +1,6 @@
 {
   "project_id": "demo-housing-mixed",
-  "project_type": "房屋建筑工程",
+  "project_type": "housing-construction",
   "rules_profile": "housing-construction",
   "project_name": "云港新区示范中学教学楼改扩建工程",
   "project_code": "YG-XFZX-JL-2024-018",
@@ -81,5 +81,6 @@
       "evidence": null
     }
   },
-  "project_name_source": "user"
+  "project_name_source": "file_consensus",
+  "updated_at": "2026-10-14T09:42:33.351Z"
 }

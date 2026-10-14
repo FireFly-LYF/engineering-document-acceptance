@@ -53,6 +53,12 @@ export class SessionPreferencesStore {
     return this.get(sessionId)
   }
 
+  /** Drop presentation preferences when the session itself is permanently deleted. */
+  remove(sessionId: string): void {
+    if (this.table) this.table.exec('DELETE FROM session_preferences WHERE session_key = ?', [sessionId])
+    else this.memory.delete(sessionId)
+  }
+
   apply(row: SessionMetaRow): SessionMetaRow {
     const preference = this.get(row.sessionId)
     return {

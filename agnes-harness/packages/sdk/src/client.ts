@@ -405,6 +405,9 @@ export class Client {
       this.call('_agnes/v1/session.rename', { sessionId, title }),
     archive: (sessionId: string, archived: boolean): Promise<SessionPreferences> =>
       this.call('_agnes/v1/session.archive', { sessionId, archived }),
+    /** Permanently remove a local session and its durable ledger rows. Irreversible. */
+    delete: (sessionId: string): Promise<void> =>
+      this.call('_agnes/v1/session.delete', { sessionId }).then(() => undefined),
     fork: async (id: string, at: number): Promise<Session> => {
       const childId = await submitForkCommand(this, id, at)
       return this.sessionHandle(childId)

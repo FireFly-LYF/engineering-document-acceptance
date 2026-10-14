@@ -141,6 +141,7 @@ export interface WorkspaceBindingStore {
   get(sessionKey: string): WorkspaceBindingRecord | undefined
   putIfAbsent(binding: WorkspaceBindingRecord): WorkspaceBindingRecord
   keys(): string[]
+  remove(sessionKey: string): void
 }
 
 export class WorkspaceBindingIndex implements WorkspaceBindingStore {
@@ -192,6 +193,10 @@ export class WorkspaceBindingIndex implements WorkspaceBindingStore {
       .all<{ session_key: string }>('SELECT session_key FROM workspace_bindings ORDER BY session_key')
       .map((row) => row.session_key)
   }
+
+  remove(sessionKey: string): void {
+    this.table.exec('DELETE FROM workspace_bindings WHERE session_key = ?', [sessionKey])
+  }
 }
 
 export class MemoryWorkspaceBindings implements WorkspaceBindingStore {
@@ -211,6 +216,10 @@ export class MemoryWorkspaceBindings implements WorkspaceBindingStore {
 
   keys(): string[] {
     return [...this.entries.keys()]
+  }
+
+  remove(sessionKey: string): void {
+    this.entries.delete(sessionKey)
   }
 }
 
@@ -292,6 +301,12 @@ export class WorkspaceCatalog {
     const directory = await this.resolve(path)
     const row = this.store.put(directory, new Date(this.clock()).toISOString())
     return this.entry(row, this.sessionAggregate(), true)
+  }
+
+  /** Drop durable binding after the session itself is permanently deleted. */
+  forgetSession(sessionKey: string): void {
+    this.bindings.remove(sessionKey)
+    this.usedSessionKeys.delete(sessionKey)
   }
 
   async authorizeAndBind(sessionKey: string, path: string): Promise<WorkspaceBindingEnvelope> {

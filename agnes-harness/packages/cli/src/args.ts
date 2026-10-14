@@ -199,7 +199,7 @@ export function usage(): string {
   return [
     'agh [prompt] [--profile <p>] [--preset <n>] [--cwd <dir>] [--continue | --resume <id>]',
     '      [--connect <t>] [--model <slot>=<route>/<model>]',
-    'agh -p [prompt] [--mode text|json] [--park] [--meta] [--ephemeral|--standalone]',
+    'agh -p [prompt] [--mode text|json] [--park] [--meta] [--key <sessionKey>] [--ephemeral|--standalone]',
     'agh --mode acp [--profile <p> | --connect <t>] [--ephemeral]      agh acp ... (alias)',
     'agh resume <id> [-p [prompt]]',
     'agh sessions [list [--cwd <dir>] | show <id>]',

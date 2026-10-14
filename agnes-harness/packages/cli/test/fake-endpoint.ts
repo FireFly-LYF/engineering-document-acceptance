@@ -245,6 +245,8 @@ export function scriptedEndpoint(
     }))
     .on('session/new', () => ({ sessionId: FAKE_SESSION_ID }))
     .on('session/load', () => ({}))
+    // Fresh -p defaults to full permission (runPrint setYolo(true)); resume keeps prior state.
+    .on('_agnes/v1/session.setYolo', () => ({ effectiveFromSeq: 1 }))
     .on('_agnes/v1/session.detach', () => ({}))
     .on('_agnes/v1/session.attach', (_p, ep) => {
       const lastSeq = seq

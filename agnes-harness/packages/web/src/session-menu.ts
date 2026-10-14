@@ -3,7 +3,7 @@ import type { Translate } from './presentation.js'
 import type { SessionAction } from './session-actions.js'
 
 /**
- * 会话行的三点菜单（重命名 / 分叉会话 / 归档会话）。
+ * 会话行的三点菜单（重命名 / 分叉会话 / 归档会话 / 删除会话）。
  *
  * 面板挂在 `body` 上而不是行内：`.sidebar` 是 `overflow: auto` 的滚动容器，行内绝对定位的面板
  * 会被它裁掉，越靠近列表底部的会话越只剩下半张菜单。落点与视口夹取沿用仓内既有的浮层基元
@@ -13,8 +13,8 @@ import type { SessionAction } from './session-actions.js'
  * ② 触发按钮可 Tab 可达，菜单支持键盘导航。
  */
 
-/** 会话菜单项定义：文案是 locale key，渲染时取词。归档可恢复、不销毁日志，因此不标记为危险操作。 */
-const ITEMS: readonly (readonly [SessionAction, string, readonly string[]])[] = [
+/** 会话菜单项：文案是 locale key。归档可恢复故非危险；删除会销毁本地日志，标为危险。 */
+const ITEMS: readonly (readonly [SessionAction, string, readonly string[], boolean?])[] = [
   [
     'rename',
     'session.menu.rename',
@@ -28,6 +28,12 @@ const ITEMS: readonly (readonly [SessionAction, string, readonly string[]])[] = 
     'archive',
     'session.menu.archive',
     ['M3 4h18v4H3z', 'M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8', 'M10 12h4'],
+  ],
+  [
+    'delete',
+    'session.menu.delete',
+    ['M3 6h18', 'M8 6V4h8v2', 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6', 'M10 11v6', 'M14 11v6'],
+    true,
   ],
 ]
 
@@ -95,10 +101,11 @@ function show(trigger: HTMLButtonElement, select: (action: SessionAction) => voi
   panel.className = 'session-menu-actions'
   panel.setAttribute('role', 'menu')
   panel.setAttribute('aria-label', label)
-  for (const [action, key, paths] of ITEMS) {
+  for (const [action, key, paths, danger] of ITEMS) {
     const item = document.createElement('button')
     item.type = 'button'
     item.setAttribute('role', 'menuitem')
+    if (danger) item.classList.add('danger')
     const caption = document.createElement('span')
     caption.textContent = t(key)
     item.append(icon(paths), caption)
@@ -110,7 +117,7 @@ function show(trigger: HTMLButtonElement, select: (action: SessionAction) => voi
   }
   document.body.append(panel)
   // 菜单固定位置：按视口余量自适应上下，边距 12px，触发点间隙 4px。
-  const place = () => positionPopover(trigger, panel, { preferredWidth: 218, preferredHeight: 128, gap: 4 })
+  const place = () => positionPopover(trigger, panel, { preferredWidth: 218, preferredHeight: 168, gap: 4 })
   const dismiss = (event: PointerEvent) => {
     const target = event.target
     if (!(target instanceof Node) || panel.contains(target) || trigger.contains(target)) return

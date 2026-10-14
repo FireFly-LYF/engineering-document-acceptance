@@ -2,7 +2,7 @@ import type { PageSessionMeta } from '@agnes/protocol'
 import type { Client } from '@agnes/sdk/browser'
 import type { Translate } from './presentation.js'
 
-export type SessionAction = 'rename' | 'fork' | 'archive'
+export type SessionAction = 'rename' | 'fork' | 'archive' | 'delete'
 
 export function forkTitle(title: string): string {
   const match = /^(.*) \((\d+)\)$/.exec(title)
@@ -20,6 +20,8 @@ export function createSessionActions(options: {
   client: Client
   changed(): Promise<unknown>
   fork(id: string, title: string): Promise<void>
+  /** Leave the deleted session if it is currently open (clear view / open another). */
+  afterDelete?(id: string): Promise<void> | void
   error(error: unknown): void
   translate: Translate
 }) {
@@ -37,6 +39,16 @@ export function createSessionActions(options: {
     <p id="session-rename-error" class="session-rename-error" role="alert"></p>
     <div class="dialog-actions"><button class="secondary-button" type="button"></button><button class="primary-button" type="submit"></button></div></form>`
   document.body.append(dialog)
+  const deleteDialog = document.createElement('dialog')
+  deleteDialog.className = 'session-delete-dialog'
+  deleteDialog.setAttribute('aria-labelledby', 'session-delete-heading')
+  deleteDialog.dataset.agnesRegion = 'dialog'
+  deleteDialog.innerHTML = `<form method="dialog">
+    <div class="dialog-heading"><h2 id="session-delete-heading"></h2></div>
+    <p id="session-delete-description"></p>
+    <p id="session-delete-error" class="session-delete-error" role="alert"></p>
+    <div class="dialog-actions"><button class="secondary-button" type="button" value="cancel"></button><button class="danger-button" type="submit" value="confirm"></button></div></form>`
+  document.body.append(deleteDialog)
   const heading = dialog.querySelector('h2') as HTMLHeadingElement
   const nameLabel = dialog.querySelector('#session-rename-label') as HTMLElement
   const form = dialog.querySelector('form') as HTMLFormElement
@@ -44,8 +56,17 @@ export function createSessionActions(options: {
   const error = dialog.querySelector('p') as HTMLParagraphElement
   const cancel = dialog.querySelector('button') as HTMLButtonElement
   const submit = dialog.querySelector('[type=submit]') as HTMLButtonElement
+  const deleteHeading = deleteDialog.querySelector('h2') as HTMLHeadingElement
+  const deleteDescription = deleteDialog.querySelector('#session-delete-description') as HTMLElement
+  const deleteForm = deleteDialog.querySelector('form') as HTMLFormElement
+  const deleteError = deleteDialog.querySelector('#session-delete-error') as HTMLParagraphElement
+  const deleteCancel = deleteDialog.querySelector('button') as HTMLButtonElement
+  const deleteConfirm = deleteDialog.querySelector('[type=submit]') as HTMLButtonElement
   let target: string | undefined
+  let deleteTarget: string | undefined
+  let deleteTitle = ''
   let pending = false
+  let deletePending = false
   let saved = false
   let returnFocus: HTMLElement | undefined
   // 弹窗只创建一次，所以在每次打开时重新取词，否则切换语言后它仍显示启动时的文案。
@@ -55,8 +76,20 @@ export function createSessionActions(options: {
     cancel.textContent = t('session.rename.cancel')
     submit.textContent = saved ? t('session.rename.retryRefresh') : t('session.rename.submit')
   }
+  const applyDeleteText = (): void => {
+    deleteHeading.textContent = t('session.delete.heading')
+    deleteDescription.textContent = t('session.delete.description', {
+      title: deleteTitle || t('session.archived.unnamed'),
+    })
+    deleteCancel.textContent = t('session.delete.cancel')
+    deleteConfirm.textContent = deletePending
+      ? t('session.delete.deleting')
+      : t('session.delete.confirm')
+  }
   const text = (failure: unknown) =>
     failure instanceof Error ? failure.message : t('session.rename.defaultError')
+  const deleteFailureText = (failure: unknown) =>
+    failure instanceof Error ? failure.message : t('session.delete.defaultError')
   const close = () => {
     if (!pending) dialog.close()
   }
@@ -68,6 +101,49 @@ export function createSessionActions(options: {
     if (returnFocus?.isConnected) returnFocus.focus()
     else
       document.querySelector<HTMLElement>(`[data-session-action-id="${CSS.escape(target ?? '')}"]`)?.focus()
+  })
+  const closeDelete = () => {
+    if (!deletePending) deleteDialog.close()
+  }
+  deleteCancel.addEventListener('click', closeDelete)
+  deleteDialog.addEventListener('cancel', (event) => {
+    if (deletePending) event.preventDefault()
+  })
+  deleteDialog.addEventListener('close', () => {
+    if (returnFocus?.isConnected) returnFocus.focus()
+    else
+      document
+        .querySelector<HTMLElement>(`[data-session-action-id="${CSS.escape(deleteTarget ?? '')}"]`)
+        ?.focus()
+  })
+  deleteForm.addEventListener('submit', (event) => {
+    event.preventDefault()
+    if (!deleteTarget || deletePending) return
+    const id = deleteTarget
+    deletePending = deleteConfirm.disabled = deleteCancel.disabled = true
+    deleteDialog.setAttribute('aria-busy', 'true')
+    deleteError.textContent = ''
+    applyDeleteText()
+    void (async () => {
+      let deleted = false
+      try {
+        await options.client.session.delete(id)
+        deleted = true
+        await options.afterDelete?.(id)
+        await options.changed()
+        deleteDialog.close()
+        document.querySelector<HTMLElement>('#sessions button')?.focus()
+      } catch (failure) {
+        deleteError.textContent = deleted
+          ? t('session.delete.refreshFailedNotice', { detail: deleteFailureText(failure) })
+          : deleteFailureText(failure)
+      } finally {
+        deletePending = deleteConfirm.disabled = deleteCancel.disabled = false
+        applyDeleteText()
+        deleteDialog.removeAttribute('aria-busy')
+        if (deleteDialog.open) deleteConfirm.focus()
+      }
+    })()
   })
   form.addEventListener('submit', (event) => {
     event.preventDefault()
@@ -255,6 +331,7 @@ export function createSessionActions(options: {
     document.removeEventListener('click', onRefresh)
     window.removeEventListener('pagehide', dispose)
     dialog.remove()
+    deleteDialog.remove()
   }
   window.addEventListener('pagehide', dispose, { once: true })
   const busy = new Set<string>()
@@ -264,7 +341,7 @@ export function createSessionActions(options: {
     async act(action: SessionAction, id: string, title: string, trigger: HTMLElement) {
       if (disposed) return
       if (action === 'rename') {
-        if (dialog.open) return
+        if (dialog.open || deleteDialog.open) return
         target = id
         returnFocus = trigger
         saved = false
@@ -276,6 +353,17 @@ export function createSessionActions(options: {
         dialog.showModal()
         input.focus()
         input.select()
+        return
+      }
+      if (action === 'delete') {
+        if (dialog.open || deleteDialog.open || busy.has(id)) return
+        deleteTarget = id
+        deleteTitle = title
+        returnFocus = trigger
+        deleteError.textContent = ''
+        applyDeleteText()
+        deleteDialog.showModal()
+        deleteConfirm.focus()
         return
       }
       if (busy.has(id)) return

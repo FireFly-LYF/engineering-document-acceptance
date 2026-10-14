@@ -80,6 +80,12 @@ export interface SqliteStorage extends StorageAdapter, ChildControlStore {
    */
   tables(owner: string): TableStore
   discardNewSession(key: SessionKey, expectedWriterRunId: string, claim?: LeaseClaim): Promise<void>
+  /**
+   * Irreversibly remove a session's core ledger rows (events, registers, sessions, writer claims).
+   * Unlike `discardNewSession`, this does not require a live writer lease — the caller must already
+   * have closed any open session and verified ownership.
+   */
+  purgeSession(key: SessionKey): Promise<void>
   readonly crashReclaim: CrashReclaimStore
   coreTableNames(): string[]
   journalMode(): string
@@ -356,6 +362,7 @@ function openSqliteStorage(db: DatabaseSync, opts: Parameters<typeof createSqlit
     deleteEvents: db.prepare('DELETE FROM events WHERE session_key = ?'),
     deleteRegisters: db.prepare('DELETE FROM registers WHERE session_key = ?'),
     deleteLease: db.prepare('DELETE FROM writer_claims WHERE session_key = ? AND run_id = ?'),
+    deleteAllLeases: db.prepare('DELETE FROM writer_claims WHERE session_key = ?'),
     deleteSession: db.prepare('DELETE FROM sessions WHERE session_key = ?'),
   }
   const tx = <T>(fn: () => T): T => {
@@ -564,6 +571,14 @@ function openSqliteStorage(db: DatabaseSync, opts: Parameters<typeof createSqlit
         q.deleteEvents.run(key)
         q.deleteRegisters.run(key)
         q.deleteLease.run(key, runId)
+        q.deleteSession.run(key)
+      })
+    },
+    async purgeSession(key) {
+      tx(() => {
+        q.deleteEvents.run(key)
+        q.deleteRegisters.run(key)
+        q.deleteAllLeases.run(key)
         q.deleteSession.run(key)
       })
     },

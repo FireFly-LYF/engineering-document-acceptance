@@ -488,6 +488,14 @@ const sessionActions = createSessionActions({
   client,
   changed: () => list(),
   fork: forkSidebar,
+  afterDelete: async (id) => {
+    sessionLabels.delete(id)
+    sessionTitles.delete(id)
+    if (current?.id !== id) return
+    const next = sessionRows.find((row) => row.sessionId !== id && !row.archived)
+    if (next) await open(next.sessionId)
+    else await beginNewDraft(false)
+  },
   error: (error) => {
     if (document.body.classList.contains('sidebar-open')) clientModules.sidebar?.dismiss()
     showError(error)

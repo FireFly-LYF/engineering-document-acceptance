@@ -254,6 +254,8 @@ export interface SessionWorkspacePort {
   metadata(sessionKey: string): SessionWorkspaceMeta | undefined
   /** Catch the projection up from its persisted sequence after a workspace row is first bound. */
   refresh(sessionKey: string, source: SessionProjectionSource, generation?: number): Promise<void>
+  /** Remove the durable listing row when the session is permanently deleted. */
+  remove(sessionKey: string): void
 }
 
 export type SessionWorkspaceMeta = {
@@ -356,6 +358,11 @@ export class SessionWorkspaceIndex implements SessionWorkspacePort {
     return this.t.get<{ cwd: string }>('SELECT cwd FROM session_workspaces WHERE session_key = ?', [
       sessionKey,
     ])?.cwd
+  }
+
+  remove(sessionKey: string): void {
+    if (!sessionKey || sessionKey.includes('\u0000')) throw new Error('invalid session workspace key')
+    this.t.exec('DELETE FROM session_workspaces WHERE session_key = ?', [sessionKey])
   }
 
   keys(): string[] {
@@ -483,6 +490,11 @@ export class MemorySessionWorkspaces implements SessionWorkspacePort {
 
   get(sessionKey: string): string | undefined {
     return this.rows.get(sessionKey)?.cwd
+  }
+
+  remove(sessionKey: string): void {
+    if (!sessionKey || sessionKey.includes('\u0000')) throw new Error('invalid session workspace key')
+    this.rows.delete(sessionKey)
   }
 
   keys(): string[] {

@@ -430,6 +430,7 @@ const FAMILIES: Array<Family & { when?: (cx: AgnesContext) => boolean }> = [
       'session.list',
       'session.rename',
       'session.archive',
+      'session.delete',
       'session.fork',
       'session.setPreset',
       'session.setModel',

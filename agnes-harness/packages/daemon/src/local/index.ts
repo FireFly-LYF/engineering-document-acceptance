@@ -49,6 +49,7 @@ import { type ArtifactReadRpcOptions, registerArtifactRead } from './methods/art
 import { registerConfiguration } from './methods/config.js'
 import { registerDiagnostics } from './methods/diagnostics.js'
 import { registerExtensions } from './methods/extensions.js'
+import { registerSessionDelete } from './methods/session-delete.js'
 import { registerSessionPreferences } from './methods/session-preferences.js'
 import { registerWorkspaces } from './methods/workspaces.js'
 import {
@@ -382,6 +383,14 @@ export function createLocalEndpoint(
   const preferences = new SessionPreferencesStore()
   const lister = withSessionPreferences(opts.lister ?? new RegistryLister(registry), preferences)
   registerSessionPreferences(ep, lister, preferences)
+  registerSessionDelete(ep, {
+    lister,
+    preferences,
+    workspaces: sessionWorkspaces,
+    forgetBinding: (sessionId) => workspaces.forgetSession(sessionId),
+    ownership: sessionOwnership,
+    close: (sessionId) => registry.close(sessionId),
+  })
   registerConfiguration(ep, opts.configuration)
   registerWorkspaces(ep, workspaces)
   registerAcp(ep, cx, feeds, attached)

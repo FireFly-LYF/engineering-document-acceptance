@@ -4,4 +4,4 @@ rules_profile：housing-construction
 
 请使用 engineering-archive-audit 对 cases/demo-housing-complete 做工程验收资料材料齐全与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。
 
-核查完成后，请使用 engineering-doc-generator生成情况说明word文件。
+有主文件且核查完成后，请使用 engineering-doc-generator 生成情况说明 word 文件。

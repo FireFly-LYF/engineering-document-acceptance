@@ -19,6 +19,11 @@ export interface SessionPrincipalOwnership {
   ): boolean
   resolve(sessionId: string): ActiveSessionPrincipal | undefined
   activeSessionIds(principalId: string): readonly string[]
+  /**
+   * Drop ownership when the principal permanently deletes their session.
+   * Insert-only still applies to reassignment; this is an explicit end-of-life path.
+   */
+  release(sessionId: string, principalId: string): boolean
 }
 
 type ReservationKind = 'new' | 'fork'
@@ -213,6 +218,20 @@ export class SessionPrincipalOwnershipIndex implements SessionPrincipalOwnership
     }
   }
 
+  release(sessionId: string, principalId: string): boolean {
+    if (!validIdentity(sessionId) || !validIdentity(principalId)) return false
+    try {
+      return this.table.transaction(() => {
+        const current = this.read(sessionId)
+        if (!current || current.principalId !== principalId) return false
+        this.table.exec('DELETE FROM session_principal_ownership WHERE session_id = ?', [sessionId])
+        return this.read(sessionId) === undefined
+      })
+    } catch {
+      throw unavailable()
+    }
+  }
+
   private activate(input: {
     sessionId: string
     principalId: string
@@ -372,6 +391,14 @@ export class MemorySessionPrincipalOwnership implements SessionPrincipalOwnershi
         .map(([sessionId]) => sessionId)
         .sort(),
     )
+  }
+
+  release(sessionId: string, principalId: string): boolean {
+    if (!validIdentity(sessionId) || !validIdentity(principalId)) return false
+    const current = this.owners.get(sessionId)
+    if (!current || current.principalId !== principalId) return false
+    this.owners.delete(sessionId)
+    return true
   }
 
   private activate(input: {

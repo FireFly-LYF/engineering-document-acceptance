@@ -158,6 +158,7 @@ describe('methods (I1 set)', () => {
       '_agnes/v1/session.archive',
       '_agnes/v1/session.attach',
       '_agnes/v1/session.budget',
+      '_agnes/v1/session.delete',
       '_agnes/v1/session.detach',
       '_agnes/v1/session.event',
       '_agnes/v1/session.followUp',
@@ -195,7 +196,7 @@ describe('methods (I1 set)', () => {
       'session/set_mode',
       'session/update',
     ])
-    expect(Object.keys(METHODS)).toHaveLength(116)
+    expect(Object.keys(METHODS)).toHaveLength(117)
     expect(METHODS['session/cancel']).toMatchObject({ kind: 'notification', direction: 'c2s' })
     expect(METHODS['session/request_permission']).toMatchObject({ kind: 'request', direction: 's2c' })
   })

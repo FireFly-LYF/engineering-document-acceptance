@@ -5997,6 +5997,7 @@ const METHOD_DEF: Record<MethodName, MethodDefRef> = {
     params: 'SessionArchiveParams',
     result: 'SessionPreferences',
   },
+  '_agnes/v1/session.delete': { fileId: AGNES_ID, params: 'SessionIdParams', result: 'Empty' },
   '_agnes/v1/diagnostics.collect': {
     fileId: AGNES_ID,
     params: 'DiagnosticsCollectParams',
@@ -6195,6 +6196,7 @@ const METHOD_PARAMS_SAMPLE: Record<MethodName, Sample> = {
     valid: { sessionId: 's', archived: true },
     invalid: [{ sessionId: 's', archived: 'true' }],
   },
+  '_agnes/v1/session.delete': AGNES_SAMPLES.SessionIdParams as Sample,
   '_agnes/v1/diagnostics.collect': AGNES_SAMPLES.DiagnosticsCollectParams as Sample,
   '_agnes/v1/diagnostics.events': AGNES_SAMPLES.DiagnosticsEventsParams as Sample,
   '_agnes/v1/session.list': AGNES_SAMPLES.SessionListParams as Sample,
@@ -6220,6 +6222,7 @@ const METHOD_PARAMS_SAMPLE: Record<MethodName, Sample> = {
 const METHOD_RESULT_SAMPLE: Partial<Record<MethodName, Sample>> = {
   '_agnes/v1/session.rename': AGNES_SAMPLES.SessionPreferences as Sample,
   '_agnes/v1/session.archive': AGNES_SAMPLES.SessionPreferences as Sample,
+  '_agnes/v1/session.delete': AGNES_SAMPLES.Empty as Sample,
   '_agnes/v1/diagnostics.collect': AGNES_SAMPLES.DiagnosticsCollectResult as Sample,
   '_agnes/v1/diagnostics.events': {
     note: 'empty last page',

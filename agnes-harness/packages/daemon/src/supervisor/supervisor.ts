@@ -87,6 +87,7 @@ import { type ArtifactReadRpcOptions, registerArtifactRead } from '../local/meth
 import { registerConfiguration } from '../local/methods/config.js'
 import { registerDiagnostics } from '../local/methods/diagnostics.js'
 import { executeJournaledEffect, registerExtensions } from '../local/methods/extensions.js'
+import { registerSessionDelete } from '../local/methods/session-delete.js'
 import { registerSessionPreferences } from '../local/methods/session-preferences.js'
 import { registerSurfaces } from '../local/methods/surfaces.js'
 import { registerWorkspaces } from '../local/methods/workspaces.js'
@@ -638,6 +639,8 @@ export type StartSupervisorOptions = {
   tables?: Tables
   /** Narrow production access to expired core claims and the op.state cell used for recovery. */
   reclaim?: ReclaimStore
+  /** Permanently erase a session's core ledger rows after the caller has closed it. */
+  purgeSession?: (sessionKey: string) => Promise<void>
   /** Package-owned tables. Production supplies Host's isolated `@agnes/daemon` table store here. */
   jobTables?: Pick<Tables, 'table'>
   /** Dedicated-schema capability for the fail-closed artifact authority index. */
@@ -1803,6 +1806,15 @@ export async function startSupervisor(o: StartSupervisorOptions): Promise<{
       }
       registerConfiguration(ep, o.configuration, profileApplication?.apply, profileApplication?.present)
       registerSessionPreferences(ep, lister, preferences)
+      registerSessionDelete(ep, {
+        lister,
+        preferences,
+        workspaces,
+        forgetBinding: (sessionId) => workspaceCatalog.forgetSession(sessionId),
+        ownership: sessionOwnership,
+        close: (sessionId) => supervisorRegistry.close(sessionId),
+        ...(o.purgeSession ? { purgeLedger: o.purgeSession } : {}),
+      })
       registerWorkspaces(ep, workspaceCatalog)
       registerAcp(ep, cx, feeds, attached)
       registerAgnes(ep, cx, feeds, attached)
@@ -2093,6 +2105,7 @@ export async function startProductionSupervisor(
         'artifact_read_authority',
       ),
       reclaim: storage.crashReclaim,
+      purgeSession: (sessionKey) => storage.purgeSession(sessionKey),
     })
   } catch (error) {
     try {

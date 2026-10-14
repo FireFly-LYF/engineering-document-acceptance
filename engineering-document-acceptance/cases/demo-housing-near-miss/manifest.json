@@ -1,8 +1,8 @@
 {
   "project_id": "demo-housing-near-miss",
-  "project_type": "房屋建筑工程",
+  "project_type": "housing-construction",
   "rules_profile": "housing-construction",
-  "project_name": "云港新区示范中学实验楼加固改造工程",
+  "project_name": "demo-housing-near-miss",
   "project_code": "YG-XFZX-SY-2024-021",
   "owner": "云港市教育发展建设中心",
   "contractor": "江海建工集团有限公司",
@@ -29,52 +29,47 @@
     "reference/public-pdfs/unit-completion-acceptance-report.pdf"
   ],
   "project_name_source": "user",
-  "primary_reference": {
-    "file_id": "files/01-准备/A-02-建筑工程施工许可证.pdf",
-    "file_name": "A-02-建筑工程施工许可证.pdf",
-    "document_code": "A-02",
-    "source": "auto"
-  },
+  "primary_reference": null,
   "fields": {
     "project_name": {
-      "value": "云港新区示范中学实验楼加固改造工程",
-      "page": 1,
-      "evidence": "项目名称：云港新区示范中学实验楼加固改造工程"
+      "value": null,
+      "page": null,
+      "evidence": null
     },
     "project_code": {
-      "value": "YG-XFZX-SY-2024-021",
-      "page": 1,
-      "evidence": "项目编号：YG-XFZX-SY-2024-021"
+      "value": null,
+      "page": null,
+      "evidence": null
     },
     "owner": {
-      "value": "云港市教育发展建设中心",
-      "page": 1,
-      "evidence": "建设单位：云港市教育发展建设中心"
+      "value": null,
+      "page": null,
+      "evidence": null
     },
     "contractor": {
-      "value": "江海建工集团有限公司",
-      "page": 1,
-      "evidence": "施工单位：江海建工集团有限公司"
+      "value": null,
+      "page": null,
+      "evidence": null
     },
     "supervisor": {
-      "value": "远洲建设监理有限公司",
-      "page": 1,
-      "evidence": "监理单位：远洲建设监理有限公司"
+      "value": null,
+      "page": null,
+      "evidence": null
     },
     "designer": {
-      "value": "青城建筑设计研究院有限公司",
-      "page": 1,
-      "evidence": "设计单位：青城建筑设计研究院有限公司"
+      "value": null,
+      "page": null,
+      "evidence": null
     },
     "address": {
-      "value": "云港市海州区学府路92号",
-      "page": 1,
-      "evidence": "工程地址：云港市海州区学府路92号"
+      "value": null,
+      "page": null,
+      "evidence": null
     },
     "start_date": {
-      "value": "2024-04-01",
-      "page": 1,
-      "evidence": "开工日期：2024-04-01"
+      "value": null,
+      "page": null,
+      "evidence": null
     },
     "finish_date": {
       "value": null,
@@ -86,5 +81,6 @@
       "page": null,
       "evidence": null
     }
-  }
+  },
+  "updated_at": "2026-10-14T09:42:35.180Z"
 }

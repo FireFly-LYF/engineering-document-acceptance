@@ -1,8 +1,15 @@
 import { type ChildProcess, spawn } from 'node:child_process'
+import { randomUUID } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 import { AGH_CLI, AGNES_PROFILE, EDA_ROOT, getAghWebOrigin, workDir } from './paths.js'
 import { writeAuditPrompt } from './cases.js'
+
+/** 每轮核查独立会话，避免同一 cwd 复用 cli:workspace 导致多工程串台 */
+function auditSessionKey(caseId: string): string {
+  const safe = caseId.replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 48)
+  return `agnes:local:${AGNES_PROFILE}:cli:session:eda-${safe}-${randomUUID()}`
+}
 
 export type AuditLaunch = {
   caseId: string
@@ -228,19 +235,23 @@ export async function startAghAudit(
   } catch {
     /* ignore */
   }
-  cachedAuditSessionId = null
 
   const prompt = await writeAuditPrompt(caseId, projectName, projectType)
   const origin = getAghWebOrigin()
-  console.log(`[agh] start -p case=${caseId} origin=${origin}`)
+  const sessionKey = auditSessionKey(caseId)
+  console.log(`[agh] start -p case=${caseId} origin=${origin} key=${sessionKey}`)
 
-  // prompt 走 argv（Windows 下比 stdin 更稳）；CLI 对同一 cwd 复用 workspace 会话
-  const child = spawn(process.execPath, [AGH_CLI, '-p', prompt, '--cwd', EDA_ROOT], {
-    cwd: EDA_ROOT,
-    env: cliEnv(),
-    stdio: ['ignore', 'ignore', 'pipe'],
-    windowsHide: true,
-  })
+  // prompt 走 argv（Windows 下比 stdin 更稳）；--key 强制独立会话（默认 cli:workspace 会按 cwd 复用）
+  const child = spawn(
+    process.execPath,
+    [AGH_CLI, '-p', prompt, '--cwd', EDA_ROOT, '--key', sessionKey],
+    {
+      cwd: EDA_ROOT,
+      env: cliEnv(),
+      stdio: ['ignore', 'ignore', 'pipe'],
+      windowsHide: true,
+    },
+  )
 
   runningAudits.set(caseId, { pid: child.pid, sessionId: null })
   const cap = attachChildCapture(caseId, child)

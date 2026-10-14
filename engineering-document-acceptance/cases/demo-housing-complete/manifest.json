@@ -1,6 +1,6 @@
 {
   "project_id": "demo-housing-complete",
-  "project_type": "房屋建筑工程",
+  "project_type": "housing-construction",
   "rules_profile": "housing-construction",
   "project_name": "云港新区市民活动中心图书馆工程",
   "project_code": "YG-SQ-TSG-2024-003",
@@ -22,7 +22,7 @@
     "reference/public-pdfs/construction-contract-gf2017.pdf",
     "reference/public-pdfs/unit-completion-acceptance-report.pdf"
   ],
-  "updated_at": "2026-10-11T02:49:18.971Z",
+  "updated_at": "2026-10-14T09:42:36.957Z",
   "primary_reference": {
     "file_id": "files/01-准备/A-02-建筑工程施工许可证.pdf",
     "file_name": "A-02-建筑工程施工许可证.pdf",
@@ -81,5 +81,5 @@
       "evidence": null
     }
   },
-  "project_name_source": "user"
+  "project_name_source": "file_consensus"
 }

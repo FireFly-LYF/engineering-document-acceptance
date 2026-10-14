@@ -31,14 +31,17 @@ function setup() {
     list: vi.fn<(options: unknown) => Promise<PageSessionMeta>>(async () => ({ items: [] })),
     rename: vi.fn(async () => ({ title: '新名称', archived: false })),
     archive: vi.fn(async () => ({ archived: false })),
+    delete: vi.fn(async () => {}),
   }
   const changed = vi.fn(async () => {})
   const fork = vi.fn(async () => {})
+  const afterDelete = vi.fn(async () => {})
   const error = vi.fn()
   const actions = createSessionActions({
     client: { session } as unknown as Client,
     changed,
     fork,
+    afterDelete,
     error,
     translate: zhT,
   })
@@ -47,6 +50,7 @@ function setup() {
     session,
     changed,
     fork,
+    afterDelete,
     error,
     actions,
     trigger: document.getElementById('trigger') as HTMLElement,
@@ -80,7 +84,9 @@ it('keeps the row menu out of the session button and hides archived rows', () =>
     '重命名',
     '分叉会话',
     '归档会话',
+    '删除会话',
   ])
+  expect(panel.querySelector('[role="menuitem"].danger')?.textContent).toBe('删除会话')
   expect(trigger.getAttribute('aria-expanded')).toBe('true')
   expect(rowElement.getAttribute('data-menu-open')).toBe('true')
   ;(panel.querySelector('[role="menuitem"]') as HTMLButtonElement).click()
@@ -242,6 +248,33 @@ it('distinguishes a committed archive from a failed refresh', async () => {
   changed.mockRejectedValueOnce(new Error('读取超时'))
   await actions.act('archive', 's', '名称', trigger)
   expect(error.mock.calls[0]?.[0].message).toContain('已归档，但列表刷新失败')
+})
+
+it('asks for confirmation before deleting a local session', async () => {
+  const { actions, session, changed, afterDelete, trigger } = setup()
+  await actions.act('delete', 's', '示例会话', trigger)
+  const dialog = document.querySelector('.session-delete-dialog') as HTMLDialogElement
+  expect(dialog.open).toBe(true)
+  expect(dialog.textContent).toContain('确认删除会话')
+  expect(dialog.textContent).toContain('示例会话')
+  expect(session.delete).not.toHaveBeenCalled()
+  dialog.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }))
+  await flush()
+  expect(session.delete).toHaveBeenCalledWith('s')
+  expect(afterDelete).toHaveBeenCalledWith('s')
+  expect(changed).toHaveBeenCalledOnce()
+  expect(dialog.open).toBe(false)
+})
+
+it('keeps the delete dialog open when the delete RPC fails', async () => {
+  const { actions, session, trigger } = setup()
+  session.delete.mockRejectedValueOnce(new Error('磁盘忙'))
+  await actions.act('delete', 's', '示例会话', trigger)
+  const dialog = document.querySelector('.session-delete-dialog') as HTMLDialogElement
+  dialog.querySelector('form')?.dispatchEvent(new Event('submit', { cancelable: true }))
+  await flush()
+  expect(dialog.open).toBe(true)
+  expect(dialog.textContent).toContain('磁盘忙')
 })
 
 function replaceArchivedPane() {

@@ -10,7 +10,7 @@ import {
   useRef,
 } from 'react'
 import type { Translate } from './locales/index.js'
-export type SessionAction = 'rename' | 'fork' | 'archive'
+export type SessionAction = 'rename' | 'fork' | 'archive' | 'delete'
 
 export interface SidebarNavigationOptions {
   nav: HTMLElement
