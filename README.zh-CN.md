@@ -173,8 +173,10 @@
 
 ### 确定性脚本 CLI
 
+以下路径相对于 `engineering-document-acceptance/`（AGH 工作区）：
+
 ```bash
-# 核查准备（工作区根目录）
+# 核查准备（EDA 工作区根目录）
 python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/demo-housing-mixed
 
 # 文书（在文书 Skill 目录）
@@ -196,7 +198,9 @@ node scripts/generate.js build --case ../../../cases/demo-housing-mixed
 
 ### 安装
 
-1. 准备环境：Node.js、Python 3；本仓库建议与 [Agnes Harness](https://github.com/AgnesAI-Labs/agnes-harness) 源码同级放置（目录名 `agnes-harness`）。
+项目代码在 `engineering-document-acceptance/`；本 monorepo 内 AGH 源码为同级目录 `agnes-harness/`。
+
+1. 准备环境：Node.js、Python 3。
 2. 构建 AGH 本地 CLI（在 `agnes-harness` 目录）：
 
 ```bash
@@ -204,23 +208,23 @@ pnpm install --frozen-lockfile
 pnpm --filter @agnes/cli build:local
 ```
 
-3. 安装本仓库依赖（在本仓库根目录）：
+3. 安装 EDA 依赖（在 monorepo 根目录）：
 
 ```bash
 pip install pymupdf
-cd .agh/skills/engineering-doc-generator && npm install
-cd ../../server && npm install
+cd engineering-document-acceptance/.agh/skills/engineering-doc-generator && npm install
+cd ../../../server && npm install
 cd ../web && npm install
 ```
 
-若使用 monorepo 根目录的 `setup.ps1`，可一次完成上述 AGH 构建与本仓库依赖安装。
+或执行 monorepo 根目录 `.\setup.ps1`，一次完成 AGH 构建与 EDA 依赖安装。Monorepo 布局说明见 [`docs/README.md`](docs/README.md)。
 
 ### 一键启动
 
 ```powershell
-# 在 engineering-document-acceptance 目录
-.\start-dev.ps1
-# 或 monorepo 根目录：.\start.ps1
+# 在 monorepo 根目录
+.\start.ps1
+# 或：cd engineering-document-acceptance; .\start-dev.ps1
 ```
 
 浏览器打开终端提示地址（一般为 `http://127.0.0.1:5173`）。将同时拉起 API（8787）、前端（5173）与 AGH Web（4177）。
@@ -229,18 +233,18 @@ cd ../web && npm install
 
 ```bash
 # 1) API
-cd server && npm run dev
+cd engineering-document-acceptance/server && npm run dev
 
 # 2) 前端
-cd web && npm run dev
+cd engineering-document-acceptance/web && npm run dev
 
-# 3) AGH（工作区必须指向本仓库根）
-node ../agnes-harness/packages/cli/dist/local/agnes.mjs serve --cwd <本仓库绝对路径>
+# 3) AGH（工作区必须指向 EDA 目录）
+node agnes-harness/packages/cli/dist/local/agnes.mjs serve --cwd <engineering-document-acceptance 绝对路径>
 ```
 
 ### 接入与使用
 
-1. 将本仓库根目录添加为 AGH **工作区**（`--cwd` 指向本目录，与 API 启动 AGH 时一致）。
+1. 将 `engineering-document-acceptance` 目录添加为 AGH **工作区**（`--cwd` 指向该目录，与 API 启动 AGH 时一致）。
 2. 在 Skills 管理中刷新并启用：
   - `engineering-archive-audit`
   - `engineering-doc-generator`
@@ -259,9 +263,10 @@ node ../agnes-harness/packages/cli/dist/local/agnes.mjs serve --cwd <本仓库�
 
 ### 演示 PDF
 
-若 `cases/*/files/` 缺失，可本地生成：
+若 `engineering-document-acceptance/cases/*/files/` 缺失，可本地生成：
 
 ```bash
+cd engineering-document-acceptance
 python tools/generate_demo_case.py
 python tools/generate_near_miss_case.py
 python tools/generate_complete_case.py
