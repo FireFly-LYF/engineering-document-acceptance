@@ -1,47 +1,265 @@
 # Engineering Document Acceptance
 
-基于 **Agnes Harness（AGH）+ Skill** 的房屋建筑工程竣工资料智能核查与情况说明生成演示项目。
+English | [简体中文](README.zh-CN.md)
 
-面向「建设工程竣工资料完整性与一致性核查」：对照可配置归档清单做材料齐全/错传/冲突/重复判定，并生成正式《核查情况说明》Word。确定性步骤由本地脚本完成，Agent 阅读 Skill 与简报做抽查、润色与执笔。
+An engineering-document intelligence audit and statement-generation project built on **[Agnes Harness (AGH)](https://github.com/AgnesAI-Labs/agnes-harness) + Skills**.
 
-> 演示数据均为**合成材料**，规则参考政府部门公开的归档目录与验收空白表结构，**不含真实工程档案与个人隐私**。
+Uploaded materials are parsed and checked against configurable document and field lists for completeness / misfiling / conflicts / duplicates. An Agent then drafts a formal *Audit Statement* as a Word document.
 
-完整「证据库 / 流水线 / Agnes API」系统实现已存档在分支 `[system](https://github.com/FireFly-LYF/engineering-document-acceptance/tree/system)`（对应 v1.0.x）。`**main` 仅保留 Skill + 脚本**，供 Agnes 在 AGH 会话中阅读并完成规则匹配与文书生成。
+> **Demo data is synthetic.** Rules follow publicly available government filing guidance. **No real project content is included.**
 
-## 功能概览
+Contents
+
+- [1. Project Overview](#1-project-overview)
+- [2. Demo Video](#2-demo-video)
+- [3. Architecture](#3-architecture)
+- [4. Integration Standards](#4-integration-standards)
+- [Setup and Run](#setup-and-run)
+- [Notes and Boundaries](#notes-and-boundaries)
+- [Attribution](#attribution)
+
+---
+
+## 1. Project Overview
+
+### Background
+
+Before construction project acceptance, owners and archive authorities must verify that project files are complete and consistent: check missing items against a configurable checklist, detect files from other projects, cross-document field conflicts and duplicates, and produce a written statement.
+
+Manual review is experience-heavy and slow. Filing catalogs and project types also vary by locality, so a single hard-coded rule set does not travel well.
+
+This project automates that field workflow: checklist matching, field extraction, and conflict detection run as deterministic scripts; statement drafting is handled by Agent Skills—reproducible, configurable, and auditable.
+
+### Core capabilities
 
 
-| 能力       | Skill                       | 说明                                         |
-| -------- | --------------------------- | ------------------------------------------ |
-| 材料齐全与一致性核查 | `engineering-archive-audit` | 清单匹配、字段抽取初稿、缺失/错传/冲突/重复判定                  |
-| 情况说明文书生成 | `engineering-doc-generator` | `prepare` → Agent 写正文 → `build` 导出 `.docx` |
+| Capability | Skill / module | Description |
+| --- | --- | --- |
+| Completeness and consistency audit | `engineering-archive-audit` | Checklist matching, draft field extraction, missing / misfiled / conflict / duplicate findings, evidence-linked report |
+| Statement generation | `engineering-doc-generator` | `prepare` → Agent drafts body → `build` exports *Engineering Document Audit Statement* `.docx` |
+| Web UI | `web/` + `server/` | Upload by project batch, set primary reference, one-click AGH audit, view results, download statement Word |
+| Multi-type rules | `rules/*.json` | Housing, road / bridge, municipal pipeline; add or edit profiles as needed |
 
 
-不使用 Workflow 编排；不依赖第三方业务模型 API。AGH 会话中应使用 **Agnes** 模型阅读本仓库 Skills。
+Three built-in housing demos for capability checks:
 
-## 目录结构
+- `demo-housing-mixed`: misfiled files, ID / amount conflicts, duplicates, missing formal acceptance and fire materials
+- `demo-housing-near-miss`: start-date conflict, missing material tests, unreadable scanned pages
+- `demo-housing-complete`: complete materials with consistent fields (clean control pack)
+
+### Highlights
+
+1. **Scripts first**: checklist matching, PDF text-layer field extraction, and draft conflict / missing checks are deterministic; the Agent only uses the brief for review and statement writing—lower token use, faster runs, more stable results.
+2. **Configurable rules**: the four-part `rules/*.json` structure can be swapped by region and project type.
+3. **Primary-reference anchoring**: identity fields are taken from a primary file such as the construction permit, so cross-file consistency has a clear baseline; the primary file can be set by the user or chosen automatically.
+4. **Traceable findings**: each finding carries checklist codes, similar files, rationale, and evidence excerpts, and can be exported as a formal Word statement.
+5. **Agnes Harness foundation**: end-to-end AGH + Skills; the web workbench starts Agent sessions via a local API, with replay in AGH Trace / session views.
+
+---
+
+## 2. Demo Video
+
+Demo video: **工程文件核查.mp4**
+
+- Link: [https://pan.baidu.com/s/1X4Yt7zPsa0dvkiozLd251A?pwd=0000](https://pan.baidu.com/s/1X4Yt7zPsa0dvkiozLd251A?pwd=0000)
+- Extraction code: `0000`
+
+---
+
+## 3. Architecture
+
+### Overall architecture
 
 ```text
-engineering-document-acceptance/
-├── .agh/skills/
-│   ├── engineering-archive-audit/     # 核查 Skill + rules + audit_prepare.py
-│   └── engineering-doc-generator/     # 文书 Skill + generate.js（prepare/build）
-├── web/                               # 前端核查台（用户→工程批次、上传与打标框架）
-├── cases/demo-housing-mixed/          # 缺陷包：远域错传 / 编号金额冲突 / 重复件
-├── cases/demo-housing-near-miss/      # 缺陷包：近邻混淆 / 开工日期冲突 / 缺检测 / 不可读页
-├── cases/demo-housing-complete/       # 正确包：全量材料齐全、字段一致、无缺陷
-├── reference/public-pdfs/             # 公开目录索引与少量已入库参考 PDF
-├── tools/                             # 造数与拉取公开 PDF 的开发脚本
-└── README.md
+┌─────────────────────────────────────────────────────────────┐
+│  Web workbench (Vite + React, :5173)                         │
+│  Upload / primary ref / start audit / results / download Word│
+└────────────────────────────┬────────────────────────────────┘
+                             │ HTTP /api/*
+┌────────────────────────────▼────────────────────────────────┐
+│  Local API (Express, :8787)                                  │
+│  cases on disk · files · start/cancel AGH · findings / stmt  │
+└────────────────────────────┬────────────────────────────────┘
+                             │ CLI / session
+┌────────────────────────────▼────────────────────────────────┐
+│  Agnes Harness Agent (:4177 Web)                             │
+│  Read Skills → run scripts → spot-check → draft statement    │
+└───────┬───────────────────────────────┬─────────────────────┘
+        │                               │
+        ▼                               ▼
+ engineering-archive-audit      engineering-doc-generator
+ audit_prepare.py               generate.js prepare / build
+ rules/*.json                   body.md → .docx
+        │                               │
+        └──────────► cases/<id>/ ◄──────┘
+                     files/  manifest.json  _work/  doc/
 ```
 
-前端工作台（框架）：
+### Core modules
+
+
+| Module | Path | Role |
+| --- | --- | --- |
+| Audit Skill | `.agh/skills/engineering-archive-audit/` | Audit flow; `scripts/audit_prepare.py` writes inventory / classification / fields / findings / audit-report |
+| Statement Skill | `.agh/skills/engineering-doc-generator/` | `prepare` builds facts / outline / agent-brief; Agent writes `正文.md`; `build` exports Word |
+| Rule profiles | `rules/housing-construction.json`, etc. | Required documents, primary reference, consistency rules (R-001 / R-002 / R-003) |
+| Local API | `server/` | Case CRUD, upload, primary reference, AGH audit launch, findings and statement Word |
+| Web UI | `web/` | User → project-batch UX; `/api` proxied to 8787 |
+| Demos and references | `cases/`, `reference/`, `tools/` | Synthetic packs, public catalog index, generation and fetch scripts |
+
+
+### Pipeline
+
+1. **Ingest**: enumerate files under `cases/<id>/files/` or an uploaded folder into `_work/inventory.json`.
+2. **Classify**: combine filename aliases, title keywords, and rule `category` into `classification.json`.
+3. **Primary reference**: user-selected or auto-chosen (e.g. construction permit); if none, stop the formal audit and mark `needs_human_review`.
+4. **Field extraction**: page-by-page PDF text layer; cross-file consistency via `global` / `scoped`. OCR for scans can be added later.
+5. **Completeness and consistency**: against `required_documents`, emit provided / missing / suspect_duplicate_or_misfiled / needs_human_review per item; misfiled files do not count as provided and are excluded from this-project field conflicts.
+6. **Agent statement**: read `audit-brief.md` / findings; the statement Skill produces the formal Word document.
+
+---
+
+## 4. Integration Standards
+
+### Directory conventions
+
+
+| Path | Convention |
+| --- | --- |
+| `cases/<id>/manifest.json` | Project metadata, `project_type` / `rules_profile`, primary reference, field anchors |
+| `cases/<id>/files/` | User materials (read-only during audit) |
+| `cases/<id>/_work/` | Writable outputs from scripts and Agent (findings, reports, body, etc.) |
+| `cases/<id>/doc/` | Exported statement `.docx` |
+| `.agh/skills/*/rules/*.json` | Archive rule profiles (replaceable on site) |
+
+
+### Rule profile interface
+
+Each `rules/*.json` **must** include:
+
+
+| Key | Meaning |
+| --- | --- |
+| `manifest_fields` | Structured fields for consistency checks (including `consistency`: `global` \| `scoped`) |
+| `primary_reference` | Primary reference definition (`code` / `name` / `aliases`) |
+| `required_documents` | Required document checklist (completeness matching) |
+| `consistency_rules` | At least R-001 (field scope), R-002 (vs manifest), R-003 (cross-file) |
+
+
+Completeness status machine: `provided` | `missing` | `suspect_duplicate_or_misfiled` | `needs_human_review`.
+
+### Local HTTP API
+
+Default port: `8787`. The frontend proxies `/api` here via Vite.
+
+
+| Method | Path | Description |
+| --- | --- | --- |
+| `GET` | `/api/health` | Health check and AGH config summary |
+| `GET` | `/api/config` | AGH CLI / Web origin / workspace path |
+| `POST` | `/api/cases` | Create project batch (identity required) |
+| `GET/PATCH` | `/api/cases/:id`… | Read / update manifest and primary reference |
+| `GET/POST/DELETE` | `/api/cases/:id/files`… | List, upload, rename, move, delete |
+| `POST` | `/api/cases/:id/audit` | Start AGH audit session |
+| `GET` | `/api/cases/:id/audit/status` | Audit process status |
+| `POST` | `/api/cases/:id/audit/cancel` | Cancel audit |
+| `GET` | `/api/cases/:id/findings` | Structured results (with AGH session link) |
+| `GET` | `/api/cases/:id/audit-detail` | Fields / consensus / evidence detail |
+| `GET` | `/api/cases/:id/statement` | Statement generation status |
+| `GET` | `/api/cases/:id/statement/download` | Download `.docx` |
+
+
+Upload limits (default): ≤ 80MB per file, ≤ 200 files per request. Paths are relative to `cases/<id>/files/`.
+
+### Deterministic script CLI
 
 ```bash
-cd web && npm install && npm run dev
+# Audit prepare (workspace root)
+python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/demo-housing-mixed
+
+# Statement (in the statement Skill directory)
+cd .agh/skills/engineering-doc-generator
+node scripts/generate.js prepare --case ../../../cases/demo-housing-mixed
+# After the Agent writes cases/.../_work/正文.md:
+node scripts/generate.js build --case ../../../cases/demo-housing-mixed
 ```
 
-演示包 PDF 若缺失，在本地生成：
+### Technical standards and references
+
+- Ministry of Housing and Urban-Rural Development *Code for Archiving Construction Project Documents* and related local filing catalogs / guides / blank forms inform the rule profiles; **a given project is governed by the currently loaded JSON checklist**.
+- Synthetic demo layouts follow public permit / contract model texts / GB 50300 appendix forms (see `reference/*/SOURCES.txt`).
+- Formal administrative acceptance is defined by competent authorities; this project assists audit and record-keeping and does not replace official acceptance decisions.
+
+---
+
+## Setup and Run
+
+### Install
+
+1. Prerequisites: Node.js, Python 3. Prefer placing this repo next to [Agnes Harness](https://github.com/AgnesAI-Labs/agnes-harness) source (directory name `agnes-harness`).
+2. Build the local AGH CLI (in the `agnes-harness` directory):
+
+```bash
+pnpm install --frozen-lockfile
+pnpm --filter @agnes/cli build:local
+```
+
+3. Install this repo’s dependencies (at this repo root):
+
+```bash
+pip install pymupdf
+cd .agh/skills/engineering-doc-generator && npm install
+cd ../../server && npm install
+cd ../web && npm install
+```
+
+If you use the monorepo-root `setup.ps1`, it can run the AGH build and this repo’s installs in one step.
+
+### One-shot start
+
+```powershell
+# In the engineering-document-acceptance directory
+.\start-dev.ps1
+# Or from the monorepo root: .\start.ps1
+```
+
+Open the URL printed in the terminal (usually `http://127.0.0.1:5173`). This starts the API (8787), frontend (5173), and AGH Web (4177).
+
+### Step-by-step start
+
+```bash
+# 1) API
+cd server && npm run dev
+
+# 2) Frontend
+cd web && npm run dev
+
+# 3) AGH (workspace must be this repo root)
+node ../agnes-harness/packages/cli/dist/local/agnes.mjs serve --cwd <absolute-path-to-this-repo>
+```
+
+### Connect and use
+
+1. Add this repo root as an AGH **workspace** (`--cwd` points here, same as when the API starts AGH).
+2. In Skills management, refresh and enable:
+  - `engineering-archive-audit`
+  - `engineering-doc-generator`
+3. Start a session using `TEST_PROMPT.txt` under the case, or a task like:
+
+```text
+Please use engineering-archive-audit on cases/demo-housing-mixed for completeness and consistency checking of completion materials;
+prefer scripts for steps the scripts can do; do not read every PDF end-to-end.
+
+After the audit, use engineering-doc-generator to produce the *Completion Materials Audit Statement* and export Word.
+
+Cover: missing items, misfiled files, field conflicts, and duplicates.
+```
+
+You can also click **Audit** in the web workbench: the API starts a local AGH CLI session, and the UI can open the AGH web page to follow progress.
+
+### Demo PDFs
+
+If `cases/*/files/` is missing, generate locally:
 
 ```bash
 python tools/generate_demo_case.py
@@ -50,144 +268,24 @@ python tools/generate_complete_case.py
 python tools/fetch_public_pdfs.py
 ```
 
-合成 PDF **按文种异构版式**（见 `reference/public-pdfs/` 与 `tools/pdf_forms.py`），避免「每份都是同一封面」：
+---
 
-| 文种 | 版式参考 | builder |
-|------|----------|---------|
-| 规划/施工许可证 | 证照红框 / 住建部施工许可密表 | `make_planning_permit` / `make_construction_permit` |
-| 施工合同 | GF-2017-0201 封面+协议书 | `make_construction_contract` |
-| 监理合同 | 蓝条题头+甲乙双方卡片 | `make_supervision_contract` |
-| 监理规划/细则/施组 | 章条技术文件 | `make_tech_document` |
-| 质量评估 | 单位抬头信纸 | `make_quality_assessment` |
-| 材料检测 | 实验室结果表 | `make_material_test_report` |
-| 竣工/预验收报告 | GD-E1 封面+工程概况 | `make_completion_pack` |
-| 竣工图说明 | 图纸目录表 | `make_asbuilt_drawing_note` |
-| 消防验收意见 | 机关抬头意见书 | `make_fire_acceptance_opinion` |
-| 规划核实 | 绿色证头 | `make_planning_verify_cert` |
-| 检验批/分项/分部/观感 | GB50300-2013 附录 E–H | `make_inspection_batch` 等 |
+## Notes and Boundaries
 
-内容仍为合成填写，**不是**真实工程档案扫描件。公开参考 PDF 用 `python tools/fetch_public_pdfs.py` 拉取。
+- This repo is an AGH Skill demo and local audit workbench; it is **not** the Agnes Harness source itself.
+- Filing requirements vary by region, project type, and owner; use replaceable JSON rules.
+- Script draft findings are for Agent review and polishing; official administrative acceptance follows competent authorities.
+- **Do not commit**: model API keys, passwords, `.env`, real project archives, ID numbers / phone numbers, or other personal data. Demo data in this repo is synthetic.
 
-## 环境要求
+---
 
-- [Agnes Harness](https://agnes-ai.cn/) 可运行（Web / CLI）
-- Python 3 + `pymupdf`（核查脚本读 PDF 文本层）
-- Node.js（文书 `docx` 导出；首次在文书 Skill 目录执行 `npm install`）
+## Attribution
 
-```bash
-pip install pymupdf
-cd .agh/skills/engineering-doc-generator && npm install
-```
-
-## 在 AGH 中使用
-
-1. 启动 AGH，将本仓库根目录添加为工作区。
-2. Skills 管理中刷新并启用：
-  - `engineering-archive-audit`
-  - `engineering-doc-generator`
-3. 新建会话，可用如下任务描述：
-
-```text
-请使用 engineering-archive-audit 对 cases/demo-housing-mixed 做竣工资料材料齐全与一致性核查；脚本能做的步骤优先用脚本，不要通读全部 PDF。
-
-核查完成后，使用 engineering-doc-generator 生成《竣工资料核查情况说明》并导出 Word。
-
-结论需覆盖：缺失项、错传、字段冲突、重复件。
-```
-
-也可直接复制各 case 下 `TEST_PROMPT.txt`（含 `demo-housing-complete` 正确包）。
-
-### 脚本优先（Skill 内约定）
-
-核查（工作区根目录）：
-
-```bash
-python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/demo-housing-mixed
-python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/demo-housing-near-miss
-python .agh/skills/engineering-archive-audit/scripts/audit_prepare.py --case cases/demo-housing-complete
-```
-
-文书：
-
-```bash
-cd .agh/skills/engineering-doc-generator
-node scripts/generate.js prepare --case ../../../cases/demo-housing-mixed
-# Agent 撰写 cases/.../_work/正文.md 后：
-node scripts/generate.js build --case ../../../cases/demo-housing-mixed
-# docx 由脚本固定写入 cases/<id>/doc/
-```
-
-## 演示包考点（`demo-housing-mixed`）
-
-合成项目「云港新区示范中学教学楼改扩建工程」，约 24 份 PDF，刻意包含：
-
-- 缺失正式《工程竣工验收报告》（仅有预验收）与消防验收类材料
-- 他项工程错传文件
-- 项目编号 / 合同金额跨文件冲突
-- 检验批记录重复（同文件编号）
-
-对照预期见 `cases/demo-housing-mixed/ground_truth.json`。
-
-## 对照包考点（`demo-housing-near-miss`）
-
-合成项目「云港新区示范中学实验楼加固改造工程」，与 mixed 区分考点：
-
-- 近邻混淆：同校区教学楼合同、同学府路小学正式验收混入正常目录（无「错传」路径）
-- 缺失材料检测 D-01、正式竣工验收 E-01、消防 G-01
-- 本工程开工日期冲突（施工许可 vs manifest）
-- 无文本层不可读扫描页 → `needs_human_review`
-
-对照预期见 `cases/demo-housing-near-miss/ground_truth.json`。
-
-## 正确包考点（`demo-housing-complete`）
-
-合成项目「云港新区市民活动中心图书馆工程」，约 22 份 PDF，**无种植缺陷**：
-
-- 全部 `housing-construction` 必需项已提供（含正式 E-01、消防 G-01）
-- 可选 B-02、G-02 亦提供
-- 项目编号 / 合同金额 / 参建单位与 `manifest.json` 一致
-- 无错传、无重复文件编号、无不可读页
-
-对照预期见 `cases/demo-housing-complete/ground_truth.json`。
-
-## 规则模板
-
-`engineering-archive-audit/rules/` 下 JSON 可配置：
-
-- `housing-construction.json` — 房屋建筑（演示完整）
-- `road-bridge.json` — 道路/桥梁（依据 GB/T 50328 与韶关/江门/深圳公开目录提炼）
-- `municipal-pipeline.json` — 市政管线（含竣工测量等管线特有项）
-
-避免写死单一地市全文；实际项目可替换为本单位/当地目录。
-
-公开参考 PDF（分类）：
-
-- `reference/README.txt` — 总索引
-- `reference/archive-catalogs/` — 国标与跨类型归档目录
-- `reference/road-bridge/`、`reference/municipal-pipeline/` — 类型侧重
-- `reference/public-pdfs/` — 空白样表与既有参考
-
-拉取：`python tools/fetch_public_pdfs.py` 与 `python tools/fetch_archive_catalogs.py`。
-
-## 开发辅助脚本（`tools/`）
-
-
-| 脚本 | 用途 |
-|------|------|
-| `pdf_forms.py` | 按文种异构 PDF 版式（许可/合同/检测/验收/消防/GB50300 等） |
-| `generate_demo_case.py` | 重新生成 `demo-housing-mixed` |
-| `generate_near_miss_case.py` | 重新生成 `demo-housing-near-miss` |
-| `generate_complete_case.py` | 重新生成 `demo-housing-complete`（正确对照包） |
-| `fetch_public_pdfs.py` | 拉取公开样表与江门/深圳目录到 `reference/public-pdfs/` |
-| `fetch_archive_catalogs.py` | 拉取并分类归档目录到 `reference/archive-catalogs/` 等 |
-
-
-## 说明与边界
-
-- 本仓库 `main` 为 AGH Skill 演示工作区，**不是** Agnes Harness 源码本身，也不是完整核查系统服务。
-- 归档要求因地区、工程类型、建设单位而异；以可配置规则为准。
-- 脚本初稿结论供 Agent 抽查润色；正式行政验收效力以主管部门规定为准。
+- **Runtime**: [Agnes Harness](https://github.com/AgnesAI-Labs/agnes-harness) (Apache-2.0)
+- **Public reference PDFs / filing catalogs**: copyright remains with the original publishers; URLs and use notes are in `reference/**/SOURCES.txt`. Not required in git by default; fetch with `tools/fetch_*.py`.
+- **Synthetic demo PDFs**: layouts follow public blank forms and model texts; content is fictional and free for reproduction experiments.
+- **Demo / learning use**: keep third-party attribution and license notices when reusing or redistributing.
 
 ## License
 
-演示与学习用途。公开参考文件版权归原发布单位；合成数据可自由用于复现实验。
+For demonstration and learning. Public reference files remain copyright of their publishers; synthetic data may be used freely for reproduction experiments.
